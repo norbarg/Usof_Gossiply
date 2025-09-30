@@ -1,0 +1,130 @@
+:root {
+    --bg: #0f1115;
+    --card: #151922;
+    --text: #e8ebf2;
+    --muted: #9aa3b2;
+    --accent: #4da3ff;
+    --danger: #ff5577;
+    --border: #232838;
+}
+* {
+    box-sizing: border-box;
+}
+html,
+body,
+#root {
+    height: 100%;
+}
+body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.4 system-ui, Arial, sans-serif;
+}
+
+.container {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 24px;
+}
+header.header {
+    position: sticky;
+    top: 0;
+    background: rgba(15, 17, 21, 0.9);
+    backdrop-filter: blur(6px);
+    border-bottom: 1px solid var(--border);
+}
+.header__inner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.brand {
+    font-weight: 700;
+    letter-spacing: 0.2px;
+    cursor: pointer;
+}
+.spacer {
+    flex: 1;
+}
+.btn {
+    background: var(--accent);
+    color: #001523;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 14px;
+    cursor: pointer;
+}
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+.btn--plain {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+}
+.auth .form {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px;
+    max-width: 520px;
+}
+.row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+label {
+    color: var(--muted);
+    font-size: 12px;
+}
+input {
+    background: #0d1016;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    color: var(--text);
+}
+.error {
+    color: var(--danger);
+    margin-top: 8px;
+}
+.notice {
+    color: #2fe3a0;
+    margin-top: 8px;
+}
+.userbox {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.userbox__info {
+    display: flex;
+    flex-direction: column;
+}
+.userbox__role {
+    color: var(--muted);
+    font-size: 12px;
+}
+.avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid var(--border);
+}
+main {
+    padding-bottom: 48px;
+}
+.muted {
+    color: var(--muted);
+    margin-top: 10px;
+}
+hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 18px 0;
+}
