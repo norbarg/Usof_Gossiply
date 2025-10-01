@@ -150,16 +150,14 @@ export const AuthController = {
         const { email } = req.body;
         if (!email) return res.status(400).json({ error: 'Email is required' });
 
-        // Не палим наличие пользователя в ответе — но твой текущий код возвращает 404.
-        // Если хочешь — оставим как есть (404). Если хочешь privacy — всегда 200.
         const user = await Users.findByLoginOrEmail(email);
         if (!user) {
-            // ВАРИАНТ А (как у тебя сейчас): палим отсутствие
             return res.status(404).json({ error: 'User not found' });
-
-            // ВАРИАНТ B (более безопасно): не палим
-            // return res.status(200).json({ message: 'If that email exists, a reset token was sent.' });
         }
+        await pool.query(
+            'DELETE FROM password_reset_tokens WHERE user_id = ?',
+            [user.id]
+        );
 
         const token = crypto.randomBytes(24).toString('hex');
         const expires_at = new Date(Date.now() + 60 * 60 * 1000); // 1h

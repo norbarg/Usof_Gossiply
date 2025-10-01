@@ -5,6 +5,7 @@ import { store } from './app/store';
 import App from './app/App';
 import './index.css';
 import './shared/styles/base.css';
+import './shared/styles/fonts.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
     <React.StrictMode>

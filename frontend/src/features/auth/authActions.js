@@ -8,6 +8,7 @@ export const AUTH_ERROR = 'auth/ERROR';
 export const AUTH_SET_TOKEN = 'auth/SET_TOKEN';
 export const AUTH_SET_USER = 'auth/SET_USER';
 export const AUTH_LOGOUT = 'auth/LOGOUT';
+export const AUTH_CLEAR_ERROR = 'auth/CLEAR_ERROR';
 
 // ===== Action creators (sync)
 const setLoading = (v) => ({ type: AUTH_LOADING, payload: v });
@@ -15,6 +16,7 @@ const setError = (e) => ({ type: AUTH_ERROR, payload: e });
 export const setToken = (t) => ({ type: AUTH_SET_TOKEN, payload: t });
 export const setUser = (u) => ({ type: AUTH_SET_USER, payload: u });
 export const logoutAction = () => ({ type: AUTH_LOGOUT });
+export const clearError = () => ({ type: AUTH_CLEAR_ERROR });
 
 // ===== Thunks (async)
 
@@ -70,7 +72,6 @@ export const register =
     };
 
 // Запрос на сброс пароля (присылает токен на почту)
-// frontend/src/features/auth/authActions.js
 export const requestPasswordReset = (email) => async (dispatch) => {
     dispatch(setLoading(true));
     try {

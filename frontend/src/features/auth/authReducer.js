@@ -4,6 +4,7 @@ import {
     AUTH_SET_TOKEN,
     AUTH_SET_USER,
     AUTH_LOGOUT,
+    AUTH_CLEAR_ERROR,
 } from './authActions';
 
 const initial = {
@@ -19,6 +20,8 @@ export function authReducer(state = initial, action) {
             return { ...state, loading: action.payload };
         case AUTH_ERROR:
             return { ...state, error: action.payload };
+        case AUTH_CLEAR_ERROR:
+            return { ...state, error: '' };
         case AUTH_SET_TOKEN:
             return { ...state, token: action.payload };
         case AUTH_SET_USER:

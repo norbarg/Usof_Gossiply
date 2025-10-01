@@ -1,0 +1,51 @@
+/* src/shared/styles/fonts.css */
+
+/* Глобальный дефолт (по желанию): */
+:root {
+    --font-inria: 'Inria Serif', serif;
+}
+
+html,
+body,
+#root {
+    font-family: var(--font-inria);
+}
+
+/* Классы по весам/начертаниям */
+.inria-serif-light {
+    font-family: 'Inria Serif', serif;
+    font-weight: 300;
+    font-style: normal;
+}
+.inria-serif-regular {
+    font-family: 'Inria Serif', serif;
+    font-weight: 400;
+    font-style: normal;
+}
+.inria-serif-bold {
+    font-family: 'Inria Serif', serif;
+    font-weight: 700;
+    font-style: normal;
+}
+
+.inria-serif-light-italic {
+    font-family: 'Inria Serif', serif;
+    font-weight: 300;
+    font-style: italic;
+}
+.inria-serif-regular-italic {
+    font-family: 'Inria Serif', serif;
+    font-weight: 400;
+    font-style: italic;
+}
+.inria-serif-bold-italic {
+    font-family: 'Inria Serif', serif;
+    font-weight: 700;
+    font-style: italic;
+}
+
+/* Небольшой бонус: сглаживание */
+body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
