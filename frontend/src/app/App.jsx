@@ -3,7 +3,7 @@ import { useDispatch } from 'react-redux';
 import Header from '../shared/components/Header';
 import RouterView from './routes';
 import { fetchMeFromToken } from '../features/auth/authActions';
-import { onRouteChange, parseHash } from '../shared/router/helpers';
+import { onRouteChange, parsePath } from '../shared/router/helpers';
 import AuthBackground from '../shared/components/AuthBackground';
 import '../shared/styles/auth.css'; // общий стиль для auth-страниц
 
@@ -14,14 +14,14 @@ function isAuthPath(hash) {
 
 export default function App() {
     const dispatch = useDispatch();
-    const [hash, setHash] = useState(location.hash);
+    const [path, setPath] = useState(location.pathname);
 
     useEffect(() => {
         dispatch(fetchMeFromToken());
     }, [dispatch]);
-    useEffect(() => onRouteChange(() => setHash(location.hash)), []);
+    useEffect(() => onRouteChange(() => setPath(location.pathname)), []);
 
-    const hideHeader = isAuthPath(hash);
+    const hideHeader = isAuthPath(path);
 
     return (
         <>

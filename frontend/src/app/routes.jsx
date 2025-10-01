@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { onRouteChange, parseHash, matchPath } from '../shared/router/helpers';
+import { onRouteChange, parsePath, matchPath } from '../shared/router/helpers';
 import Login from '../features/auth/pages/Login.jsx';
 import Register from '../features/auth/pages/Register.jsx';
 import ResetPassword from '../features/auth/pages/ResetPassword.jsx';
@@ -21,19 +21,19 @@ const routes = [
 ];
 
 export default function RouterView() {
-    const [hash, setHash] = useState(parseHash());
-    useEffect(() => onRouteChange(() => setHash(parseHash())), []);
+    const [path, setPath] = useState(parsePath());
+    useEffect(() => onRouteChange(() => setPath(parsePath())), []);
 
     const { Component, params } = useMemo(() => {
         for (const r of routes) {
-            const params = matchPath(r.path, hash);
+            const params = matchPath(r.path, path);
             if (params) return { Component: r.component, params };
         }
         return {
             Component: () => <div className="container">Not found</div>,
             params: {},
         };
-    }, [hash]);
+    }, [path]);
 
     return <Component params={params} />;
 }

@@ -55,7 +55,7 @@ export default function ResetPassword() {
             {/* HEADER */}
             <div className="auth-header">
                 <img
-                    src="/src/shared/assets/logo.png"
+                    src="/src/assets/logo.png"
                     alt="logo"
                     className="auth-logo-img"
                 />

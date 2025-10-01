@@ -1,4 +1,6 @@
+// frontend/src/shared/api/axios.js
 import axios from 'axios';
+import { navigate } from '../router/helpers';
 
 const api = axios.create({ baseURL: import.meta.env.VITE_API_URL });
 
@@ -16,7 +18,7 @@ api.interceptors.response.use(
         if (err?.response?.status === 401) {
             localStorage.removeItem('token');
             // Мʼяка переадресація на логін
-            if (location.hash !== '#/login') location.hash = '#/login';
+            if (location.pathname !== '/login') navigate('/login');
         }
         return Promise.reject(err);
     }

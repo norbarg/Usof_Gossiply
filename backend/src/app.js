@@ -1,3 +1,4 @@
+// backend/src/app.js
 import express from 'express';
 import morgan from 'morgan';
 import 'express-async-errors';

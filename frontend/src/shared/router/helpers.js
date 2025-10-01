@@ -1,24 +1,29 @@
-// Простий хелпер для хеш-навігації
+// МИНИ-РОУТЕР БЕЗ # (History API)
+
+// Переход на путь
 export function navigate(path) {
     if (!path.startsWith('/')) path = '/' + path;
-    location.hash = '#' + path;
+    window.history.pushState({}, '', path);
+    // вручную шлём событие, чтобы твои подписчики обновились
+    window.dispatchEvent(new PopStateEvent('popstate'));
 }
 
+// Подписка на изменения маршрута
 export function onRouteChange(cb) {
-    window.addEventListener('hashchange', cb);
+    window.addEventListener('popstate', cb);
     window.addEventListener('load', cb);
     return () => {
-        window.removeEventListener('hashchange', cb);
+        window.removeEventListener('popstate', cb);
         window.removeEventListener('load', cb);
     };
 }
 
-export function parseHash() {
-    const h = location.hash.replace(/^#/, '') || '/';
-    return h;
+// Текущий путь (вместо parseHash)
+export function parsePath() {
+    return location.pathname || '/';
 }
 
-// Матчинг із параметрами типу "/confirm-email/:token"
+// Матчинг типа "/confirm-email/:token"
 export function matchPath(pattern, actual) {
     const p = pattern.split('/').filter(Boolean);
     const a = actual.split('/').filter(Boolean);
