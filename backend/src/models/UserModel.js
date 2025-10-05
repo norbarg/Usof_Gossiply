@@ -1,16 +1,31 @@
 import { BaseModel } from './BaseModel.js';
+import { env } from '../config/env.js';
 
 export class UserModel extends BaseModel {
     constructor() {
         super('users');
     }
-    async create({ login, password_hash, full_name, email, role = 'user' }) {
+    async create({
+        login,
+        password_hash,
+        full_name,
+        email,
+        role = 'user',
+        profile_picture = env.DEFAULT_AVATAR,
+    }) {
         const rows = await this.query(
-            `INSERT INTO users (login, password_hash, full_name, email, role) 
-       VALUES (:login, :password_hash, :full_name, :email, :role)`,
-            { login, password_hash, full_name, email, role }
+            `INSERT INTO users (login, password_hash, full_name, email, role, profile_picture) 
+       VALUES (:login, :password_hash, :full_name, :email, :role, :profile_picture)`,
+            { login, password_hash, full_name, email, role, profile_picture }
         );
-        return { id: rows.insertId, login, full_name, email, role };
+        return {
+            id: rows.insertId,
+            login,
+            full_name,
+            email,
+            role,
+            profile_picture,
+        };
     }
     async findByLoginOrEmail(loginOrEmail) {
         const rows = await this.query(

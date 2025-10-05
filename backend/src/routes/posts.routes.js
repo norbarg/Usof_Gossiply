@@ -1,7 +1,11 @@
 import { Router } from 'express';
 import { PostController } from '../controllers/PostController.js';
 import { CommentController } from '../controllers/CommentController.js';
-import { authRequired, requireRole } from '../middleware/auth.js';
+import {
+    authRequired,
+    requireRole,
+    attachUserIfAny,
+} from '../middleware/auth.js';
 import { upload } from '../middleware/upload.js';
 import { FavoriteController } from '../controllers/FavoriteController.js';
 
@@ -27,7 +31,7 @@ r.get(
 );
 
 // public list
-r.get('/', PostController.list); //corrected
+r.get('/', attachUserIfAny, PostController.list); //corrected
 r.get('/:post_id', PostController.getById); //corrected
 r.get('/:post_id/comments', PostController.listComments); //corrected
 r.get('/:post_id/categories', PostController.listCategories); //corrected

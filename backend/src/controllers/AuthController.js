@@ -1,3 +1,4 @@
+// backend/src/controllers/AuthController.js
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { Users } from '../models/UserModel.js';
@@ -53,6 +54,7 @@ export const AuthController = {
             full_name,
             email,
             role: 'user',
+            profile_picture: env.DEFAULT_AVATAR,
         });
         const token = await insertVerifyToken(user.id);
         const link = `${

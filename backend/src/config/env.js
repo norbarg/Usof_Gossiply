@@ -16,4 +16,6 @@ export const env = {
     SMTP_USER: process.env.SMTP_USER || 'lut4ui.v.mire@gmail.com',
     SMTP_PASS: process.env.SMTP_PASS || 'stav sync xkge awci',
     SMTP_FROM: process.env.SMTP_FROM || '"UsOf" <no-reply@usof.local>',
+    DEFAULT_AVATAR:
+        process.env.DEFAULT_AVATAR || '/uploads/avatars/default.png',
 };

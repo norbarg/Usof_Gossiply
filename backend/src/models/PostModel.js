@@ -1,4 +1,21 @@
+// backend/src/models/PostModel.js
 import { BaseModel } from './BaseModel.js';
+
+function normalizeUploadPath(s) {
+    if (!s) return s;
+    let u = String(s).trim().replace(/\\/g, '/');
+    // убираем возможный /api
+    u = u.replace(/^\/api(\/|$)/i, '/');
+    // "/uploadsavatars..." -> "/uploads/avatars..."
+    u = u.replace(/^(\/)?uploads(?=[^/])/i, '/uploads/');
+    // "uploads//avatars" -> "/uploads/avatars"
+    u = u.replace(/^\/?uploads\/+/i, '/uploads/');
+    // если начинается с "uploads/..." — добавим ведущий слэш
+    if (/^uploads\//i.test(u)) u = '/' + u;
+    // "/uploads/avatars123.jpg" -> "/uploads/avatars/123.jpg"
+    u = u.replace(/^\/uploads\/avatars(?=\d)/i, '/uploads/avatars/');
+    return u;
+}
 
 export class PostModel extends BaseModel {
     constructor() {
@@ -23,43 +40,74 @@ export class PostModel extends BaseModel {
         offset = 0,
         status,
         author_id,
-        category_id,
-        sortBy = 'likes',
+        category_ids,
+        sortBy = 'likes', // 'likes' | 'date'
         date_from,
         date_to,
+        q,
         viewer_id,
         include_all = false,
     }) {
         let where = [];
         const params = { limit: +limit, offset: +offset };
 
+        // === ВИДИМОСТЬ и СТАТУС ===
+        // include_all=true (админ): уважать явный status, иначе ничего не ограничиваем.
+        // include_all=false (обычный):
+        //   - status='active' -> только активные
+        //   - status='inactive' -> только Мои неактивные
+        //   - status='all' или пусто -> активные + (мои неактивные, если viewer_id)
         if (include_all) {
-            if (status) {
+            if (status === 'active' || status === 'inactive') {
                 where.push(`p.status = :status`);
                 params.status = status;
             }
         } else {
-            if (status) {
-                where.push(`p.status = :status`);
-                params.status = status;
-            } else if (viewer_id) {
-                where.push(
-                    `(p.status = 'active' OR (p.status = 'inactive' AND p.author_id = :viewer_id))`
-                );
-                params.viewer_id = viewer_id;
-            } else {
+            if (status === 'active') {
                 where.push(`p.status = 'active'`);
+            } else if (status === 'inactive') {
+                // показываем только свои неактивные
+                if (viewer_id) {
+                    where.push(
+                        `p.status = 'inactive' AND p.author_id = :viewer_id`
+                    );
+                    params.viewer_id = viewer_id;
+                } else {
+                    // неавторизованный — НИЧЕГО (пустая выборка)
+                    where.push(`1 = 0`);
+                }
+            } else {
+                // '', 'all' или не задано
+                if (viewer_id) {
+                    where.push(
+                        `(p.status = 'active' OR (p.status='inactive' AND p.author_id = :viewer_id))`
+                    );
+                    params.viewer_id = viewer_id;
+                } else {
+                    where.push(`p.status = 'active'`);
+                }
             }
         }
+
+        if (q) {
+            params.q = `%${q.toLowerCase()}%`;
+            where.push(
+                `(LOWER(p.title) LIKE :q OR LOWER(CAST(p.content AS CHAR)) LIKE :q)`
+            );
+        }
+
+        // фильтры
         if (author_id) {
             where.push(`p.author_id = :author_id`);
             params.author_id = author_id;
         }
-        if (category_id) {
-            where.push(
-                `EXISTS (SELECT 1 FROM post_categories pc WHERE pc.post_id = p.id AND pc.category_id = :category_id)`
-            );
-            params.category_id = category_id;
+        if (Array.isArray(category_ids) && category_ids.length) {
+            const ph = category_ids.map((_, i) => `:cid${i}`).join(',');
+            where.push(`EXISTS (
+              SELECT 1 FROM post_categories pc
+              WHERE pc.post_id = p.id AND pc.category_id IN (${ph})
+            )`);
+            category_ids.forEach((id, i) => (params[`cid${i}`] = +id));
         }
         if (date_from) {
             where.push(`p.publish_date >= :date_from`);
@@ -69,24 +117,189 @@ export class PostModel extends BaseModel {
             where.push(`p.publish_date <= :date_to`);
             params.date_to = date_to;
         }
+
+        const likesExpr = `COALESCE((
+  SELECT SUM(CASE WHEN l.type='like' THEN 1 WHEN l.type='dislike' THEN -1 ELSE 0 END)
+  FROM likes l
+  WHERE l.comment_id IS NULL AND l.post_id = p.id
+), 0)`;
         const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
-        const order =
-            sortBy === 'date'
-                ? 'p.publish_date DESC'
-                : 'COALESCE(lc.like_count,0) DESC';
+        const order = (() => {
+            switch (sortBy) {
+                case 'date_asc':
+                    return 'p.publish_date ASC';
+                case 'date_desc':
+                    return 'p.publish_date DESC';
+                case 'likes_asc':
+                    return `${likesExpr} ASC`;
+                case 'likes_desc':
+                    return `${likesExpr} DESC`;
+
+                default:
+                    return `${likesExpr} DESC`; // по умолчанию — самые залайканные
+            }
+        })();
+
+        const favoritedExpr = viewer_id
+            ? `(SELECT COUNT(*)>0 FROM favorites f WHERE f.post_id = p.id AND f.user_id = :viewer_id) AS favorited,`
+            : `0 AS favorited,`;
+
         const sql = `
-      SELECT p.*, COALESCE(lc.like_count,0) AS like_count
-      FROM posts p
-      LEFT JOIN (
-        SELECT post_id, SUM(CASE WHEN type='like' THEN 1 ELSE -1 END) AS like_count
-        FROM likes WHERE comment_id IS NULL GROUP BY post_id
-      ) lc ON lc.post_id = p.id
-      ${whereSql}
-      ORDER BY ${order}
-      LIMIT :limit OFFSET :offset
-    `;
-        return this.query(sql, params);
+    SELECT
+      p.id, p.author_id, p.title, p.content, p.status,
+      p.publish_date AS created_at,  /* алиас под фронт */
+      p.updated_at,
+
+      u.login            AS author_login,
+      u.full_name        AS author_name,
+      u.profile_picture  AS author_avatar,
+
+      /* счётчики через коррелированные подзапросы */
+      COALESCE((
+        SELECT SUM(CASE WHEN l.type='like' THEN 1 ELSE -1 END)
+        FROM likes l
+        WHERE l.comment_id IS NULL AND l.post_id = p.id
+      ), 0) AS likes_count,
+
+      COALESCE((
+        SELECT COUNT(*) FROM favorites f WHERE f.post_id = p.id
+      ), 0) AS favorites_count,
+
+      COALESCE((
+        SELECT COUNT(*) FROM comments c
+        WHERE c.post_id = p.id AND c.status = 'active'
+      ), 0) AS comments_count,
+
+      ${favoritedExpr}
+
+      /* категории без GROUP BY */
+      (
+        SELECT GROUP_CONCAT(DISTINCT c.title ORDER BY c.title SEPARATOR ',')
+        FROM post_categories pc
+        JOIN categories c ON c.id = pc.category_id
+        WHERE pc.post_id = p.id
+      ) AS categories_csv
+
+    FROM posts p
+    JOIN users u ON u.id = p.author_id
+    ${whereSql}
+    ORDER BY ${order}
+    LIMIT :limit OFFSET :offset
+  `;
+
+        const rows = await this.query(sql, params);
+
+        // post-processing: categories[], plain/excerpt из JSON-контента
+        return rows.map((r) => {
+            const categories = r.categories_csv
+                ? r.categories_csv.split(',').filter(Boolean)
+                : [];
+            const author_avatar = normalizeUploadPath(r.author_avatar);
+            let plain = '';
+            try {
+                const blocks = Array.isArray(r.content)
+                    ? r.content
+                    : JSON.parse(r.content || '[]');
+                plain = blocks
+                    .filter((b) => b && (b.text || b.value))
+                    .map((b) => b.text ?? b.value ?? '')
+                    .join(' ')
+                    .trim();
+            } catch (_) {}
+
+            const words = plain.split(/\s+/).filter(Boolean);
+            const excerpt =
+                words.slice(0, 30).join(' ') + (words.length > 30 ? '…' : '');
+
+            return {
+                ...r,
+                author_avatar,
+                categories,
+                content_plain: plain,
+                excerpt,
+                liked: false, // фронт дальше управляет оптимистично
+                favorited: !!r.favorited,
+            };
+        });
     }
+
+    // === NEW: считаем total под теми же фильтрами, что и list ===
+    async count({
+        status,
+        author_id,
+        category_ids,
+        date_from,
+        date_to,
+        q,
+        viewer_id,
+        include_all = false,
+    }) {
+        let where = [];
+        const params = {};
+
+        if (include_all) {
+            if (status === 'active' || status === 'inactive') {
+                where.push(`p.status = :status`);
+                params.status = status;
+            }
+        } else {
+            if (status === 'active') {
+                where.push(`p.status = 'active'`);
+            } else if (status === 'inactive') {
+                if (viewer_id) {
+                    where.push(
+                        `p.status = 'inactive' AND p.author_id = :viewer_id`
+                    );
+                    params.viewer_id = viewer_id;
+                } else {
+                    where.push(`1 = 0`);
+                }
+            } else {
+                if (viewer_id) {
+                    where.push(
+                        `(p.status = 'active' OR (p.status='inactive' AND p.author_id = :viewer_id))`
+                    );
+                    params.viewer_id = viewer_id;
+                } else {
+                    where.push(`p.status = 'active'`);
+                }
+            }
+        }
+
+        if (author_id) {
+            where.push(`p.author_id = :author_id`);
+            params.author_id = author_id;
+        }
+        if (Array.isArray(category_ids) && category_ids.length) {
+            const ph = category_ids.map((_, i) => `:cid${i}`).join(',');
+            where.push(`EXISTS (
+      SELECT 1 FROM post_categories pc
+      WHERE pc.post_id = p.id AND pc.category_id IN (${ph})
+    )`);
+            category_ids.forEach((id, i) => (params[`cid${i}`] = +id));
+        }
+        if (date_from) {
+            where.push(`p.publish_date >= :date_from`);
+            params.date_from = date_from;
+        }
+        if (date_to) {
+            where.push(`p.publish_date <= :date_to`);
+            params.date_to = date_to;
+        }
+
+        if (q) {
+            params.q = `%${q.toLowerCase()}%`;
+            where.push(
+                `(LOWER(p.title) LIKE :q OR LOWER(CAST(p.content AS CHAR)) LIKE :q)`
+            );
+        }
+
+        const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+        const sql = `SELECT COUNT(*) AS total FROM posts p ${whereSql}`;
+        const rows = await this.query(sql, params);
+        return Number(rows[0]?.total ?? 0);
+    }
+    // === /NEW ===
     async updateById(id, data) {
         const fields = [];
         const params = { id };

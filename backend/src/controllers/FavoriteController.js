@@ -1,3 +1,4 @@
+// backend/src/controllers/FavoriteController.js
 import { Posts } from '../models/PostModel.js';
 import { Favorites } from '../models/FavoriteModel.js';
 

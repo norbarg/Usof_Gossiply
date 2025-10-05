@@ -1,12 +1,56 @@
-import React from 'react';
+// frontend/src/shared/components/Header.jsx
+import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../../features/auth/authActions';
-import { navigate } from '../router/helpers';
-import { mediaUrl } from '../utils/jwt';
+import { navigate, onRouteChange } from '../router/helpers';
+import { assetUrl } from '../utils/assetUrl';
 
 export default function Header() {
     const dispatch = useDispatch();
     const { user, token } = useSelector((s) => s.auth);
+    const [term, setTerm] = useState('');
+    const debounceMs = 400;
+
+    // инициализация из URL и подписка на смену маршрута
+    useEffect(() => {
+        const syncFromUrl = () => {
+            const usp = new URLSearchParams(location.search);
+            setTerm(usp.get('q') || '');
+        };
+        syncFromUrl();
+        const off = onRouteChange(syncFromUrl);
+        return off;
+    }, []);
+
+    // авто-обновление URL при вводе (debounce)
+    useEffect(() => {
+        const h = setTimeout(() => {
+            const next = term.trim();
+            const usp = new URLSearchParams(location.search);
+            const current = usp.get('q') || '';
+
+            // если уже совпадает — лишний navigate не делаем
+            if (current === next) return;
+
+            if (next) usp.set('q', next);
+            else usp.delete('q');
+
+            navigate(`/${usp.toString() ? `?${usp.toString()}` : ''}`);
+        }, debounceMs);
+
+        return () => clearTimeout(h);
+    }, [term]);
+
+    const onKeyDown = (e) => {
+        if (e.key === 'Escape') {
+            setTerm('');
+            const usp = new URLSearchParams(location.search);
+            if (usp.has('q')) {
+                usp.delete('q');
+                navigate(`/${usp.toString() ? `?${usp.toString()}` : ''}`);
+            }
+        }
+    };
 
     const onLogout = async () => {
         await dispatch(logout());
@@ -19,13 +63,26 @@ export default function Header() {
                 <div className="brand" onClick={() => navigate('/')}>
                     USOF
                 </div>
+                {/* Поиск в хедере (живой, без кнопки) */}
+                <div className="header-search">
+                    <input
+                        type="search"
+                        placeholder="Search posts…"
+                        value={term}
+                        onChange={(e) => setTerm(e.target.value)}
+                        onKeyDown={onKeyDown}
+                    />
+                </div>
                 <div className="spacer" />
                 {token ? (
                     <div className="userbox">
                         {user?.profile_picture && (
                             <img
                                 className="avatar"
-                                src={mediaUrl(user.profile_picture)}
+                                src={
+                                    assetUrl(user.profile_picture) ||
+                                    '/placeholder-avatar.png'
+                                }
                                 alt="avatar"
                             />
                         )}

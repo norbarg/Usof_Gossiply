@@ -7,9 +7,11 @@ import {
 } from 'redux';
 import { thunk } from 'redux-thunk'; // ← именованный импорт!
 import { authReducer } from '../features/auth/authReducer';
+import { postsReducer } from '../features/posts/postsReducer';
 
 const rootReducer = combineReducers({
     auth: authReducer,
+    posts: postsReducer,
 });
 
 const composeEnhancers =

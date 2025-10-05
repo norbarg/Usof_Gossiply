@@ -1,3 +1,4 @@
+//backend/src/middleware/auth.js
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env.js';
 
@@ -24,4 +25,17 @@ export function requireRole(role) {
                 .json({ error: 'Forbidden: insufficient role' });
         next();
     };
+}
+
+export function attachUserIfAny(req, _res, next) {
+    const auth = req.headers.authorization || '';
+    const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
+    if (token) {
+        try {
+            req.user = jwt.verify(token, env.JWT_SECRET);
+        } catch {
+            // токен битый — тихо игнорируем
+        }
+    }
+    next();
 }

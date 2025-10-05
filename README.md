@@ -261,7 +261,7 @@ Node.js + Express + MySQL API for a Q&A-like forum (StackOverflow-inspired), bui
 -   `PATCH - /api/users/:user_id` - command:
 
     ```
-    curl -X PATCH http://localhost:3000/api/users/36 ^
+    curl -X PATCH http://localhost:3000/api/users/7 ^
     -H "Authorization: %TOKEN%" ^
     -H "Content-Type: application/json" ^
     -d "{\"full_name\":\"Alice Two Updated\"}"
@@ -278,7 +278,7 @@ Node.js + Express + MySQL API for a Q&A-like forum (StackOverflow-inspired), bui
     ```
     curl -X PATCH http://localhost:3000/api/users/avatar ^
     -H "Authorization: %TOKEN%" ^
-    -F "avatar=@\"C:\Users\My Asus\OneDrive\Рабочий стол\Usof_backend\Frame 24.png\""
+    -F "avatar=@\"C:\Users\My Asus\OneDrive\Рабочий стол\Usof_Gossiply\backend\638D0A7B-FD04-4C72-94DF-61D917F32DBA.jpg""
     ```
 
     answer:
@@ -684,7 +684,7 @@ Node.js + Express + MySQL API for a Q&A-like forum (StackOverflow-inspired), bui
     [{"id":19,"author_id":59,"title":..]
     ```
 
--   `DELETE - /api/posts/19/favorite`- command:
+-   `DELETE - /api/posts/:post_id/favorite`- command:
 
     ```
     curl -X DELETE http://localhost:3000/api/posts/19/favorite ^

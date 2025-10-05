@@ -10,11 +10,12 @@ export function navigate(path) {
 
 // Подписка на изменения маршрута
 export function onRouteChange(cb) {
-    window.addEventListener('popstate', cb);
-    window.addEventListener('load', cb);
+    const handler = () => cb(location.pathname);
+    window.addEventListener('popstate', handler);
+    window.addEventListener('load', handler);
     return () => {
-        window.removeEventListener('popstate', cb);
-        window.removeEventListener('load', cb);
+        window.removeEventListener('popstate', handler);
+        window.removeEventListener('load', handler);
     };
 }
 

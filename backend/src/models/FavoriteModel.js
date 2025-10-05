@@ -1,3 +1,4 @@
+// backend/src/models/FavoriteModel.js
 import { BaseModel } from './BaseModel.js';
 
 export class FavoriteModel extends BaseModel {

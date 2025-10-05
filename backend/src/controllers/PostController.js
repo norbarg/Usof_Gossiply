@@ -1,3 +1,4 @@
+// backend/src/controllers/PostController.js
 import { Posts } from '../models/PostModel.js';
 import { Categories } from '../models/CategoryModel.js';
 import { Comments } from '../models/CommentModel.js';
@@ -6,28 +7,89 @@ import { pool } from '../config/db.js';
 
 export const PostController = {
     async list(req, res) {
-        const {
-            page = 1,
-            limit = 10,
-            sortBy = 'likes',
-            category_id,
-            status,
-            date_from,
-            date_to,
-        } = req.query;
+        const { page = 1, limit = 10, status, date_from, date_to } = req.query;
+        // фронт может прислать sort или sortBy
+        const q = (req.query.q || '').trim();
+
+        const normStatus =
+            typeof status === 'string' ? status.toLowerCase() : '';
+
+        const rawSort = String(
+            req.query.sortBy ?? req.query.sort ?? ''
+        ).toLowerCase();
+
+        // нормализуем в наш набор: likes_desc | likes_asc | date_desc | date_asc | (опц.) comments_desc
+        const sortBy = (() => {
+            switch (rawSort) {
+                case 'new':
+                case 'newest':
+                case 'date_desc':
+                    return 'date_desc';
+                case 'old':
+                case 'oldest':
+                case 'date_asc':
+                    return 'date_asc';
+                case 'likes_asc':
+                case 'least':
+                case 'low':
+                    return 'likes_asc';
+                case 'top':
+                case 'likes':
+                case 'most':
+                case 'likes_desc':
+                default:
+                    return 'likes_desc';
+            }
+        })();
+
+        // категории: поддерживаем category_id и category_ids (массив / "1,2,3")
+        let category_ids = [];
+        if (Array.isArray(req.query.category_ids)) {
+            category_ids = req.query.category_ids
+                .map((x) => +x)
+                .filter(Boolean);
+        } else if (typeof req.query.category_ids === 'string') {
+            category_ids = req.query.category_ids
+                .split(',')
+                .map((x) => +x.trim())
+                .filter(Boolean);
+        } else if (req.query.category_id) {
+            const one = +req.query.category_id;
+            if (one) category_ids = [one];
+        }
         const viewer_id = req.user?.id;
+        const viewer_role = req.user?.role;
+        const include_all = viewer_role === 'admin'; // админ видит всё
         const offset = (Math.max(1, +page) - 1) * +limit;
-        const posts = await Posts.list({
+
+        const items = await Posts.list({
             limit,
             offset,
             sortBy,
-            category_id,
-            status,
+            category_ids,
+            status: normStatus,
             date_from,
             date_to,
             viewer_id,
+            include_all,
+            q,
         });
-        res.json(posts);
+
+        const total = await Posts.count({
+            category_ids,
+            status: normStatus,
+            date_from,
+            date_to,
+            viewer_id,
+            include_all,
+            q,
+        });
+        res.json({
+            items,
+            total,
+            page: Number(page),
+            limit: Number(limit),
+        });
     },
     async getById(req, res) {
         const id = +req.params.post_id;

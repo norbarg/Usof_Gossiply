@@ -1,15 +1,16 @@
+// frontend/src/app/App.jsx
 import React, { useEffect, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import Header from '../shared/components/Header';
 import RouterView from './routes';
 import { fetchMeFromToken } from '../features/auth/authActions';
-import { onRouteChange, parsePath } from '../shared/router/helpers';
+import { onRouteChange } from '../shared/router/helpers';
 import AuthBackground from '../shared/components/AuthBackground';
-import '../shared/styles/auth.css'; // общий стиль для auth-страниц
+import '../shared/styles/auth.css';
 
-function isAuthPath(hash) {
-    const h = (hash || '').replace(/^#/, '');
-    return /^\/(login|register|password-reset)(|\/.*)$/.test(h || '/');
+// теперь работаем с history API → проверяем именно pathname
+function isAuthPath(pathname) {
+    return /^\/(login|register|password-reset)(\/.*)?$/.test(pathname || '/');
 }
 
 export default function App() {
