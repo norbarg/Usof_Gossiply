@@ -6,10 +6,14 @@ import Register from '../features/auth/pages/Register.jsx';
 import ResetPassword from '../features/auth/pages/ResetPassword.jsx';
 import PostList from '../features/posts/pages/PostList.jsx';
 import PostDetails from '../features/posts/pages/PostDetails.jsx';
+import CategoriesList from '../features/categories/pages/CategoriesList';
+import FavoritesList from '../features/favorites/pages/FavoritesList.jsx';
 
 const routes = [
     { path: '/', component: PostList },
     { path: '/posts/:id', component: PostDetails },
+    { path: '/categories', component: CategoriesList },
+    { path: '/favorites', component: FavoritesList },
     { path: '/login', component: Login },
     { path: '/register', component: Register },
     { path: '/password-reset', component: ResetPassword },

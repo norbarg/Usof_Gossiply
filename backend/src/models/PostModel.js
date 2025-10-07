@@ -50,6 +50,7 @@ export class PostModel extends BaseModel {
     }) {
         let where = [];
         const params = { limit: +limit, offset: +offset };
+        if (viewer_id) params.viewer_id = +viewer_id;
 
         // === ВИДИМОСТЬ и СТАТУС ===
         // include_all=true (админ): уважать явный status, иначе ничего не ограничиваем.
@@ -141,7 +142,7 @@ export class PostModel extends BaseModel {
         })();
 
         const favoritedExpr = viewer_id
-            ? `(SELECT COUNT(*)>0 FROM favorites f WHERE f.post_id = p.id AND f.user_id = :viewer_id) AS favorited,`
+            ? `EXISTS(SELECT 1 FROM favorites f WHERE f.post_id = p.id AND f.user_id = :viewer_id) AS favorited,`
             : `0 AS favorited,`;
 
         const sql = `
@@ -299,7 +300,27 @@ export class PostModel extends BaseModel {
         const rows = await this.query(sql, params);
         return Number(rows[0]?.total ?? 0);
     }
-    // === /NEW ===
+
+    async findByIdWithFavorited(id, viewer_id = 0) {
+        const sql = `
+      SELECT
+        p.*,
+        EXISTS(
+          SELECT 1 FROM favorites f
+          WHERE f.post_id = p.id AND f.user_id = :viewer_id
+        ) AS favorited
+      FROM posts p
+      WHERE p.id = :id
+      LIMIT 1
+    `;
+        const rows = await this.query(sql, { id: +id, viewer_id: +viewer_id });
+        const r = rows[0];
+        if (!r) return null;
+
+        // при желании можешь тут же нормализовать avatar/categories, как в list()
+        return { ...r, favorited: !!r.favorited };
+    }
+
     async updateById(id, data) {
         const fields = [];
         const params = { id };

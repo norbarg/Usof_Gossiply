@@ -93,7 +93,7 @@ export const PostController = {
     },
     async getById(req, res) {
         const id = +req.params.post_id;
-        const post = await Posts.findById(id);
+        const post = await Posts.findByIdWithFavorited(id, req.user?.id || 0);
         if (!post) return res.status(404).json({ error: 'Post not found' });
         if (
             post.status === 'inactive' &&

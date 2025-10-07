@@ -1,4 +1,54 @@
-/* Фон для auth: частицы на весь экран */
+/*auth.css*/
+:root {
+    --header-h: 64px;
+} /* подгони под свою высоту хедера */
+html,
+body {
+    height: 100%;
+}
+body {
+    overflow: hidden;
+}
+
+.page {
+    height: 94dvh; /* мобильный-safe vh */
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+:root {
+    --scroll-thumb: rgba(110, 107, 232, 0.65); /* #6e6be8 ~65% */
+    --scroll-thumb-hover: rgba(110, 107, 232, 0.95);
+}
+
+/* Firefox */
+.page {
+    scrollbar-width: thin; /* тонкий */
+    scrollbar-color: var(--scroll-thumb) transparent; /* thumb / track */
+}
+
+/* WebKit */
+.page::-webkit-scrollbar {
+    width: 10px;
+}
+.page::-webkit-scrollbar-track {
+    background: transparent; /* прячем трек */
+}
+.page::-webkit-scrollbar-thumb {
+    background-color: var(--scroll-thumb);
+    border-radius: 999px;
+    /* «просвет» вокруг, чтобы трек не читался */
+    border: 3px solid transparent;
+    background-clip: content-box;
+}
+.page:hover::-webkit-scrollbar-thumb {
+    background-color: var(--scroll-thumb-hover);
+}
+.page::-webkit-scrollbar-corner {
+    background: transparent;
+}
+
+/* Фон для страниц аутентификации */
 .auth-bg {
     position: fixed;
     inset: 0;

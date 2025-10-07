@@ -1,21 +1,44 @@
 // frontend/src/features/posts/pages/PostList.jsx
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { listPosts, toggleLike, toggleFavorite } from '../postsActions';
+import {
+    listPosts,
+    toggleLike,
+    toggleFavorite,
+    loadMyFavoriteIds,
+} from '../postsActions';
 import PostCard from '../components/PostCard';
 import FiltersBar from '../../../shared/components/FiltersBar';
 import Paginator from '../../../shared/components/Paginator';
 import api from '../../../shared/api/axios';
 import { onRouteChange } from '../../../shared/router/helpers';
 import '../../../shared/styles/feed.css';
+import plusOff from '../../../../public/icons/plus-circle-off.png';
+import plusOn from '../../../../public/icons/plus-circle-on.png';
+import favOff from '../../../../public/icons/fav_off.png';
+import favOn from '../../../../public/icons/fav_on.png';
 
 const getQFromUrl = () => new URLSearchParams(location.search).get('q') || '';
 
+const getCatsFromUrl = () => {
+    const usp = new URLSearchParams(location.search);
+    const raw =
+        usp.get('category_ids') ||
+        usp.get('category_id') ||
+        usp.get('cat') ||
+        usp.get('category') ||
+        '';
+    if (!raw) return [];
+    return raw
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+};
 export default function PostList() {
     const dispatch = useDispatch();
     const { items, meta, loading, error } = useSelector((s) => s.posts);
     const [filters, setFilters] = useState({
-        category_ids: [], // массив строк/чисел
+        category_ids: getCatsFromUrl(),
         q: getQFromUrl(),
         date_from: '',
         date_to: '',
@@ -26,10 +49,15 @@ export default function PostList() {
     useEffect(() => {
         const off = onRouteChange(() => {
             const q = getQFromUrl();
-            setFilters((f) => ({ ...f, q }));
+            const category_ids = getCatsFromUrl();
+            setFilters((f) => ({ ...f, q, category_ids })); // <-- обновляем из URL
         });
         return off;
     }, []);
+
+    useEffect(() => {
+        dispatch(loadMyFavoriteIds());
+    }, [dispatch]);
 
     useEffect(() => {
         dispatch(listPosts({ page: 1, limit: 10, ...filters, append: false }));
@@ -82,9 +110,6 @@ export default function PostList() {
 
     return (
         <div className="container">
-            <h2 className="inria-serif-bold" style={{ marginBottom: 12 }}>
-                Posts
-            </h2>
             <FiltersBar
                 value={{
                     categoryIds: (filters.category_ids ?? []).map(String),
@@ -107,6 +132,8 @@ export default function PostList() {
                     })
                 }
                 categories={cats}
+                catIconOff={plusOff} // <- ваша иконка для НЕактивного
+                catIconOn={plusOn}
             />
 
             {loading && (
@@ -123,6 +150,8 @@ export default function PostList() {
                         post={p}
                         onToggleLike={(id) => dispatch(toggleLike(id))}
                         onToggleFavorite={(id) => dispatch(toggleFavorite(id))}
+                        favIconOff={favOff}
+                        favIconOn={favOn}
                     />
                 ))}
             </div>
@@ -141,7 +170,7 @@ export default function PostList() {
                 {loading
                     ? 'Loading…'
                     : !hasMore && items.length > 0
-                    ? 'That’s all 👋'
+                    ? 'That’s all '
                     : ''}
             </div>
         </div>

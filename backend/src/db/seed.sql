@@ -26,19 +26,25 @@ SET @u_dave  = (SELECT id FROM users WHERE login='dave');
 -- CATEGORIES
 -- ===============
 INSERT INTO categories (title, description) VALUES
-  ('JavaScript', 'Questions about JS'),
-  ('Databases',  'SQL, NoSQL and more'),
-  ('Node.js',    'Backend with Node'),
-  ('CSS',        'Styling and layouts'),
-  ('Algorithms', 'CS fundamentals')
+  ('Celebrity', 'news, rumors and discussions of famous people.'),
+  ('Music',  'new tracks, albums, concerts, musicians'' scandals.'),
+  ('Movies and TV series',    'premieres, actors, filming insiders.'),
+  ('Romances and relationships',        'who''s dating whom, weddings, divorces.'),
+  ('Scandals and dramas', 'loud quarrels, revelations, conflicts.'),
+  ('Fashion and style', 'discussion of images, fails on the red carpet.'),
+  ('Health and beauty', 'fitness trends, diet tips, cosmetic procedures.'),
+  ('Social networks and hype', 'what is currently blowing up Instagram, TikTok, YouTube.'),
+  ('Plastic surgery and beauty', 'discussion of appearance, cosmetology, changes.'),
+  ('Insiders and rumors', 'unverified but hot news.'),
+  ('Retro stars', 'discussion of legends of the past, \\\"where are they now\\\".')
 ON DUPLICATE KEY UPDATE
   description = VALUES(description);
 
-SET @c_js   = (SELECT id FROM categories WHERE title='JavaScript');
-SET @c_db   = (SELECT id FROM categories WHERE title='Databases');
-SET @c_node = (SELECT id FROM categories WHERE title='Node.js');
-SET @c_css  = (SELECT id FROM categories WHERE title='CSS');
-SET @c_algo = (SELECT id FROM categories WHERE title='Algorithms');
+SET @c_js   = (SELECT id FROM categories WHERE title='Celebrity');
+SET @c_db   = (SELECT id FROM categories WHERE title='Music');
+SET @c_node = (SELECT id FROM categories WHERE title='Movies and TV series');
+SET @c_css  = (SELECT id FROM categories WHERE title='Romances and relationships');
+SET @c_algo = (SELECT id FROM categories WHERE title='Scandals and dramas');
 
 -- =========
 -- POSTS

@@ -1,6 +1,18 @@
 // backend/src/models/FavoriteModel.js
 import { BaseModel } from './BaseModel.js';
 
+// тот же нормалайзер, что в PostModel (скопирован сюда)
+function normalizeUploadPath(s) {
+    if (!s) return s;
+    let u = String(s).trim().replace(/\\/g, '/');
+    u = u.replace(/^\/api(\/|$)/i, '/');
+    u = u.replace(/^(\/)?uploads(?=[^/])/i, '/uploads/');
+    u = u.replace(/^\/?uploads\/+/i, '/uploads/');
+    if (/^uploads\//i.test(u)) u = '/' + u;
+    u = u.replace(/^\/uploads\/avatars(?=\d)/i, '/uploads/avatars/');
+    return u;
+}
+
 export class FavoriteModel extends BaseModel {
     constructor() {
         super('favorites');
@@ -28,23 +40,88 @@ export class FavoriteModel extends BaseModel {
 
     async listByUser({ user_id, limit = 20, offset = 0, sortBy = 'date' }) {
         const order =
-            sortBy === 'likes'
-                ? 'COALESCE(lc.like_count,0) DESC'
-                : 'p.publish_date DESC';
+            sortBy === 'likes' ? 'likes_count DESC' : 'p.publish_date DESC';
 
-        return this.query(
-            `SELECT p.*, COALESCE(lc.like_count,0) AS like_count
-       FROM favorites f
-       JOIN posts p ON p.id = f.post_id
-       LEFT JOIN (
-         SELECT post_id, SUM(CASE WHEN type='like' THEN 1 ELSE -1 END) AS like_count
-         FROM likes WHERE comment_id IS NULL GROUP BY post_id
-       ) lc ON lc.post_id = p.id
+        const sql = `
+      SELECT
+        p.id, p.author_id, p.title, p.content, p.status,
+        p.publish_date AS created_at,  /* под фронт */
+        p.updated_at,
+
+        u.login           AS author_login,
+        u.full_name       AS author_name,
+        u.profile_picture AS author_avatar,
+
+       COALESCE((
+          SELECT SUM(CASE WHEN l.type='like' THEN 1 WHEN l.type='dislike' THEN -1 ELSE 0 END)
+          FROM likes l
+          WHERE l.comment_id IS NULL AND l.post_id = p.id
+        ), 0) AS likes_count,
+
+        COALESCE((
+          SELECT COUNT(*) FROM favorites f2 WHERE f2.post_id = p.id
+        ), 0) AS favorites_count,
+
+        COALESCE((
+          SELECT COUNT(*) FROM comments c
+          WHERE c.post_id = p.id AND c.status='active'
+        ), 0) AS comments_count,
+
+        1 AS favorited, /* раз в «избранном», то true */
+
+        (
+          SELECT GROUP_CONCAT(DISTINCT c.title ORDER BY c.title SEPARATOR ',')
+          FROM post_categories pc
+          JOIN categories c ON c.id = pc.category_id
+          WHERE pc.post_id = p.id
+        ) AS categories_csv
+
+      FROM favorites f
+      JOIN posts p  ON p.id = f.post_id
+      JOIN users u  ON u.id = p.author_id
       WHERE f.user_id = :user_id
       ORDER BY ${order}
-      LIMIT :limit OFFSET :offset`,
-            { user_id, limit: +limit, offset: +offset }
-        );
+      LIMIT :limit OFFSET :offset
+    `;
+
+        const rows = await this.query(sql, {
+            user_id,
+            limit: +limit,
+            offset: +offset,
+        });
+
+        // пост-процессинг: как в Posts.list
+        return rows.map((r) => {
+            const categories = r.categories_csv
+                ? r.categories_csv.split(',').filter(Boolean)
+                : [];
+            const author_avatar = normalizeUploadPath(r.author_avatar);
+
+            let plain = '';
+            try {
+                const blocks = Array.isArray(r.content)
+                    ? r.content
+                    : JSON.parse(r.content || '[]');
+                plain = blocks
+                    .filter((b) => b && (b.text || b.value))
+                    .map((b) => b.text ?? b.value ?? '')
+                    .join(' ')
+                    .trim();
+            } catch (_) {}
+
+            const words = plain.split(/\s+/).filter(Boolean);
+            const excerpt =
+                words.slice(0, 30).join(' ') + (words.length > 30 ? '…' : '');
+
+            return {
+                ...r,
+                author_avatar,
+                categories,
+                content_plain: plain,
+                excerpt,
+                favorited: true,
+            };
+        });
     }
 
     async isFavorited({ user_id, post_id }) {

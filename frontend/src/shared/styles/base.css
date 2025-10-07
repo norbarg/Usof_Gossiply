@@ -23,7 +23,7 @@ body {
 }
 
 .container {
-    max-width: 1080px;
+    max-width: 1280px;
     margin: 0 auto;
     padding: 24px;
 }
@@ -34,16 +34,7 @@ header.header {
     backdrop-filter: blur(6px);
     border-bottom: 1px solid var(--border);
 }
-.header__inner {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-.brand {
-    font-weight: 700;
-    letter-spacing: 0.2px;
-    cursor: pointer;
-}
+
 .spacer {
     flex: 1;
 }
@@ -109,13 +100,7 @@ input {
     color: var(--muted);
     font-size: 12px;
 }
-.avatar {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 1px solid var(--border);
-}
+
 main {
     padding-bottom: 48px;
 }

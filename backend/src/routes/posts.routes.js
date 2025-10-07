@@ -1,3 +1,4 @@
+// backend/src/routes/posts.routes.js
 import { Router } from 'express';
 import { PostController } from '../controllers/PostController.js';
 import { CommentController } from '../controllers/CommentController.js';

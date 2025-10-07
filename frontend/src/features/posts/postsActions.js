@@ -8,12 +8,15 @@ export const POSTS_APPEND = 'posts/APPEND';
 export const POSTS_SET_META = 'posts/SET_META';
 export const POST_SET_ONE = 'posts/SET_ONE';
 
+export const POSTS_SET_FAV_IDS = 'posts/SET_FAV_IDS';
+
 const setLoading = (v) => ({ type: POSTS_LOADING, payload: v });
 const setError = (e) => ({ type: POSTS_ERROR, payload: e });
 const setList = (items) => ({ type: POSTS_SET, payload: items });
 const appendList = (items) => ({ type: POSTS_APPEND, payload: items });
 const setMeta = (meta) => ({ type: POSTS_SET_META, payload: meta });
 export const setOne = (post) => ({ type: POST_SET_ONE, payload: post });
+const setFavIds = (ids) => ({ type: POSTS_SET_FAV_IDS, payload: ids });
 
 /**
  * Надёжный listPosts: отправляем сразу несколько вариантов параметров,
@@ -153,25 +156,56 @@ export const toggleLike = (postId) => async (dispatch, getState) => {
     }
 };
 
-export const toggleFavorite = (postId) => async (dispatch, getState) => {
-    const { posts } = getState();
-    const post = posts.items.find((p) => p.id === postId) || posts.current;
-    if (!post) return;
+// postsActions.js
+export const toggleFavorite =
+    (postId, opts = {}) =>
+    async (dispatch, getState) => {
+        const { posts } = getState();
+        const postInStore =
+            posts.items.find((p) => p.id === postId) || posts.current || null;
 
-    const next = !post.favorited;
+        const wasFavorited = postInStore?.favorited ?? !!opts.currentFavorited;
+        const next = !wasFavorited;
 
-    // оптимистично подсветим звезду
-    dispatch(setOne({ ...post, favorited: next }));
+        // оптимистичное обновление карточки
+        if (postInStore) dispatch(setOne({ ...postInStore, favorited: next }));
 
-    try {
-        if (next) {
-            await api.post(`/posts/${postId}/favorite`); // добавить
-        } else {
-            await api.delete(`/posts/${postId}/favorite`); // убрать
+        // оптимистично обновим ids
+        const prevIds = posts.favoriteIds || [];
+        const nextIds = next
+            ? Array.from(new Set([...prevIds, postId]))
+            : prevIds.filter((id) => id !== postId);
+        dispatch(setFavIds(nextIds));
+
+        try {
+            if (next) await api.post(`/posts/${postId}/favorite`);
+            else await api.delete(`/posts/${postId}/favorite`);
+        } catch (e) {
+            // откат карточки
+            if (postInStore)
+                dispatch(setOne({ ...postInStore, favorited: wasFavorited }));
+            // откат ids
+            dispatch(setFavIds(prevIds));
+            throw e;
         }
-    } catch (e) {
-        // откат, если запрос не прошёл
-        dispatch(setOne({ ...post, favorited: !next }));
-        throw e;
+    };
+
+// грузим ids избранных один раз (или при входе)
+export const loadMyFavoriteIds = () => async (dispatch, getState) => {
+    try {
+        const { auth } = getState();
+        if (!auth?.token) return; // не залогинен — пропускаем
+
+        // возьми побольше лимит; при необходимости можно докрутить пагинацию
+        const { data } = await api.get('/users/me/favorites', {
+            params: { page: 1, limit: 1000 },
+        });
+        const rows = Array.isArray(data)
+            ? data
+            : data.items ?? data.results ?? data.data ?? [];
+        const ids = (rows || []).map((r) => r.id);
+        dispatch(setFavIds(ids));
+    } catch (_) {
+        /* no-op */
     }
 };

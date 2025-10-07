@@ -6,6 +6,7 @@ import {
     POSTS_APPEND,
     POSTS_SET_META,
     POST_SET_ONE,
+    POSTS_SET_FAV_IDS,
 } from './postsActions';
 
 const initial = {
@@ -13,6 +14,7 @@ const initial = {
     error: null,
     items: [],
     current: null, // для деталей
+    favoriteIds: [],
     meta: {
         page: 1,
         limit: 10,
@@ -22,6 +24,16 @@ const initial = {
         q: '',
     },
 };
+
+// утилита нормализации «звезды»
+function withFavorited(items, favIds) {
+    const set = new Set(favIds || []);
+    return (items || []).map((p) => {
+        // если сервер уже отдал boolean — оставим его, иначе выставим из набора
+        const hasServer = typeof p.favorited === 'boolean';
+        return hasServer ? p : { ...p, favorited: set.has(p.id) };
+    });
+}
 
 export function postsReducer(state = initial, action) {
     switch (action.type) {
@@ -48,17 +60,24 @@ export function postsReducer(state = initial, action) {
         case POSTS_SET_META:
             return { ...state, meta: { ...state.meta, ...action.payload } };
         case POST_SET_ONE: {
-            const updated = action.payload;
-            // обновим current и, если он из списка, — элемент в списке
-            const items = state.items.map((p) =>
-                p.id === updated.id ? updated : p
+            const upd = action.payload; // { id, ...patch }
+            const nextItems = state.items.map((it) =>
+                it.id === upd.id ? { ...it, ...upd } : it
             );
-            const inList = items.some((p) => p.id === updated.id);
-            return {
-                ...state,
-                current: updated,
-                items: inList ? items : state.items,
-            };
+            const nextCurrent =
+                state.current && state.current.id === upd.id
+                    ? { ...state.current, ...upd }
+                    : state.current;
+
+            return { ...state, items: nextItems, current: nextCurrent };
+        }
+        case POSTS_SET_FAV_IDS: {
+            const favoriteIds = Array.isArray(action.payload)
+                ? action.payload
+                : [];
+            // при обновлении ids — пересчитаем «звёзды» в текущем списке
+            const items = withFavorited(state.items, favoriteIds);
+            return { ...state, favoriteIds, items };
         }
         default:
             return state;

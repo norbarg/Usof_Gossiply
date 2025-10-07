@@ -1,3 +1,4 @@
+// backend/src/routes/users.routes.js
 import { Router } from 'express';
 import { UserController } from '../controllers/UserController.js';
 import { authRequired, requireRole } from '../middleware/auth.js';

@@ -1,101 +1,562 @@
 /* frontend/src/shared/styles/feed.css */
-/* Контейнер ленты */
-.feed-container {
-    max-width: 980px;
-    margin: 24px auto;
-    padding: 0 16px;
+
+/* ===== Header (макет) ===== */
+
+.site-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    background: rgba(0, 0, 0, 0.4);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    backdrop-filter: saturate(120%) blur(6px);
+    transition: transform 0.22s ease, opacity 0.18s ease;
+    will-change: transform;
 }
 
-/* Панель фильтров */
-.filters {
+.site-header.is-hidden {
+    transform: translateY(-110%);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.site-header.is-visible {
+    transform: translateY(0);
+    opacity: 1;
+}
+/* Контейнер (если нужно чуть шире в шапке) */
+.site-header .container {
+    max-width: 1280px;
+    padding: 15px;
+}
+
+.header__inner {
     display: grid;
-    grid-template-columns: 160px 200px 1fr;
-    gap: 10px;
-    margin-bottom: 12px;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
 }
 
-/* Сетка карточек постов */
+/* Brand */
+.brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+}
+.brand__logo {
+    width: 35px;
+    object-fit: contain;
+}
+.brand__name {
+    font-family: 'Inria Serif', serif;
+    font-size: 26px;
+    color: #e9ecf2;
+}
+
+/* Центровка навигации по центру колонки */
+.main-nav {
+    justify-self: center;
+    display: flex;
+    gap: 28px;
+    margin: 0; /* убери старый margin-left */
+}
+
+.nav-a {
+    position: relative;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    padding: 10px 0 12px;
+    font-family: 'Inria Serif', serif;
+    font-size: 22px;
+    color: #e9ecf2;
+}
+.nav-a:hover {
+    color: #fff;
+}
+.nav-a__underline {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 12px;
+    height: 1px;
+    background: transparent;
+    transition: background-color 0.2s ease;
+}
+.nav-a.is-active .nav-a__underline,
+.nav-a:hover .nav-a__underline {
+    background: #fff;
+}
+
+/* Правый блок: поиск + auth */
+.header-right {
+    justify-self: end;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+}
+
+/* Search — тонкая линия */
+.header-search--line {
+    position: relative;
+    margin: 0;
+}
+
+.header-search--line input[type='search'] {
+    width: 150px;
+    background: transparent;
+    border: 0;
+    outline: none;
+    color: #e9ecf2;
+    padding: 8px 0px 6px;
+    font-family: 'Inria Serif', serif;
+    font-size: 16px;
+    font-weight: lighter;
+}
+.header-search--line input::placeholder {
+    color: #e9ecf2;
+}
+.header-search__underline {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 5px;
+    height: 1.5px;
+    background: #e9ecf2;
+}
+/* фокус ИЛИ есть введённый текст */
+.header-search--line:focus-within .header-search__underline,
+.header-search--line input:not(:placeholder-shown) ~ .header-search__underline {
+    background: #6e6be8;
+    opacity: 1;
+}
+
+/* курсор и выделение тоже в фирменном цвете */
+.header-search--line input[type='search'] {
+    caret-color: #6e6be8;
+}
+.header-search--line input[type='search']::selection {
+    background: rgba(110, 107, 232, 0.35);
+}
+.link-plain {
+    background: transparent;
+    border: 0;
+    color: #e9ecf2;
+    cursor: pointer;
+    padding: 6px 0;
+    font-size: 16px;
+    font-family: 'Inria Serif', serif;
+}
+.link-plain:hover {
+    color: #fff;
+    text-decoration: underline;
+}
+/* Аватар как кнопка */
+.avatar {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+.avatar-btn {
+    background: transparent;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    line-height: 0;
+}
+
+.header-auth {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: relative; /* для поповера */
+}
+
+/* Поповер */
+.user-menu {
+    position: absolute;
+    right: 0;
+    top: 42px; /* под аватаркой */
+    min-width: 156px;
+    background: #1b1524; /* тёмно-фиолетовый оттенок под макет */
+    border-radius: 14px;
+    padding: 8px;
+    z-index: 1000;
+}
+
+.user-menu__item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 5px;
+    background: transparent;
+    border: 0;
+    color: #e9e3db;
+    font-family: 'Inria Serif', serif;
+    font-size: 16px;
+    text-align: left;
+    cursor: pointer;
+    border-radius: 10px;
+}
+.user-menu__item:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.user-menu__sep {
+    border: 0;
+    border-top: 1px solid #7c7c7c;
+    margin: 6px 4px;
+}
+
+/* Иконки в поповере */
+.uicon {
+    width: 20px;
+    height: 20px;
+    display: inline-block;
+}
+
+/* мини-круглая аватарка в пункте "My profile" */
+.uicon--avatar {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+/* Блок с краткой инфой о юзере: имя + роль */
+.user-label {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end; /* как в макете — текст прижат к правому краю */
+    line-height: 1.1;
+    margin-right: 8px; /* небольшой отступ перед аватаркой */
+}
+
+.user-label__name {
+    color: #e9e3db;
+    font-family: 'Inria Serif', serif;
+    font-size: 16px;
+}
+
+.user-label__role {
+    color: rgba(231, 227, 219, 0.65);
+    font-family: 'Inria Serif', serif;
+    font-size: 13px;
+    margin-top: 2px;
+    text-transform: lowercase; /* как на превью: "user" */
+}
+
+/* ===================== Bubble filters ===================== */
+
+.filters--bubble {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    justify-content: end;
+    margin-top: 30px;
+}
+.filters {
+    display: flex;
+    border-radius: 17px;
+    background: rgba(0, 0, 0, 0.4);
+    padding: 8px 12px;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset,
+        0 6px 18px rgba(0, 0, 0, 0.25);
+    gap: 10px;
+}
+/* контейнер выпадашки */
+.menu {
+    position: relative;
+}
+
+/* панель как на скриншоте */
+.menu__panel.bubble {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    min-width: 220px;
+    max-width: 320px;
+    background: #15111d;
+    border: 1px solid #272727;
+    border-radius: 15px;
+    padding: 10px;
+    z-index: 1200;
+    color: #e9ecf2;
+    backdrop-filter: blur(4px);
+}
+
+/* заголовок у списка категорий */
+.bubble__title {
+    font-family: 'Inria Serif', serif;
+    font-size: 16px;
+    color: #e9ecf2;
+    padding: 6px 8px 8px;
+    border-bottom: 1px solid #7c7c7c;
+    margin: 0 0 6px;
+}
+
+/* список в пузыре */
+.bubble__list {
+    display: grid;
+    gap: 0px;
+}
+
+/* пункт списка */
+.bubble__item {
+    display: grid;
+    /* grid-template-columns: 20px 1fr; */
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    text-align: left;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: transparent;
+    border: 0;
+    color: #e9ecf2;
+    font-family: 'Inria Serif', serif;
+    font-size: 16px;
+    cursor: pointer;
+}
+.bubble__item.cattt {
+    grid-template-columns: 20px 1fr;
+}
+.bubble__item:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+/* состояние выбранного */
+.bubble__item.is-on {
+    background: rgba(104, 77, 214, 0.25);
+    outline: 1px solid #6e6be8;
+}
+
+/* иконка «плюс в кружке» как на скрине */
+.dot {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: inline-grid;
+    place-items: center;
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    position: relative;
+}
+.dot::before,
+.dot::after {
+    content: '';
+    position: absolute;
+    background: #fff;
+}
+.dot::before {
+    width: 10px;
+    height: 2px;
+}
+.dot::after {
+    width: 2px;
+    height: 10px;
+}
+.dot.on {
+    background: #6e6be8;
+    border-color: #6e6be8;
+}
+.dot.on::before,
+.dot.on::after {
+    background: #fff;
+}
+
+/* кастомные иконки для категорий (если используются <img>) */
+.cat-ico {
+    width: 21px;
+    height: 21px;
+    display: inline-block;
+    object-fit: contain;
+    pointer-events: none;
+}
+
+/* маленькая «таблетка»-триггер */
+.chip {
+    font-family: 'Inria Serif', serif;
+    height: 26px;
+    padding: 0 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: #15111d;
+    color: #e9e7ef;
+    font-size: 16px;
+    line-height: 24px;
+    cursor: pointer;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset,
+        0 6px 18px rgba(0, 0, 0, 0.25);
+}
+.chip:hover {
+    background: rgba(0, 0, 0, 0.6);
+}
+/* базовая плашка уже есть */
+.chip--active {
+    background: rgba(110, 107, 232, 0.25);
+    border-color: #6e6be8;
+    color: #e9e7ef;
+    box-shadow: 0 0 0 1px rgba(110, 107, 232, 0.45) inset,
+        0 6px 18px rgba(0, 0, 0, 0.25);
+}
+.chip--active:hover {
+    background: rgba(110, 107, 232, 0.35);
+}
+
+/* (по желанию) когда меню открыто — тоже подсвечивать */
+.chip[aria-expanded='true'] {
+    background: rgba(110, 107, 232, 0.25);
+    border-color: #6e6be8;
+}
+
+/* дата-панель шире */
+.bubble--date {
+    min-width: 280px;
+}
+
+/* поля даты */
+.date-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 4px 2px 8px;
+}
+.date-field {
+    display: grid;
+    gap: 6px;
+    font-size: 12px;
+    color: #cfc9df;
+}
+.date-field input[type='date'] {
+    height: 34px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 10px;
+    color: #f0eef6;
+    font: inherit;
+    padding: 0 10px;
+    outline: none;
+}
+.date-field input[type='date']::-webkit-calendar-picker-indicator {
+    filter: invert(1) opacity(0.8);
+}
+
+/* кнопки внизу пузыря */
+.bubble__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed rgba(255, 255, 255, 0.1);
+}
+.bubble__actions > button {
+    height: 30px;
+    padding: 0 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(0, 0, 0, 0.4);
+    color: #eee9fc;
+    cursor: pointer;
+}
+.bubble__actions > button:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+.bubble__actions > .ghost {
+    background: transparent;
+    border-style: dashed;
+    color: #c8c1da;
+}
+
+/* ====== LIST LAYOUT ====== */
 .post-grid {
     display: grid;
-    gap: 12px;
-    margin-top: 12px;
+    gap: 22px; /* больше воздуха между карточками */
+    margin-top: 16px;
 }
 
-/* Карточка поста */
-.post-card {
-    background: #191b22;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 14px;
-    padding: 14px;
+/* ====== CARD (фига) ====== */
+.post-card--figma {
+    position: relative;
+    /* background: rgba(217, 217, 217, 0.01); */
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid #15111d;
+    backdrop-filter: blur(20px);
+    border-radius: 18px;
+    padding: 18px 18px 16px;
+    overflow: hidden;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
 }
-.post-card__title {
-    margin: 0 0 6px;
+
+/* вся карточка кликабельна */
+.post-card--clickable {
     cursor: pointer;
+}
+
+/* фиолетовое свечение вверху слева */
+.post-card__glow {
+    content: '';
+    position: absolute;
+    top: -22%;
+    left: -12%;
+    width: 60%;
+    height: 60%;
+    background: radial-gradient(
+        40% 40% at 50% 50%,
+        rgba(138, 92, 255, 0.55) 0%,
+        rgba(138, 92, 255, 0.22) 36%,
+        rgba(138, 92, 255, 0) 70%
+    );
+    filter: blur(6px) saturate(115%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* header */
+.post-card__header {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* title */
+.post-card__title {
+    position: relative;
+    z-index: 1;
+    margin: 6px 0 8px;
     color: #e9ecf2;
+    cursor: pointer;
+    font-family: 'Inria Serif', serif;
+    font-weight: 400;
+    font-size: 28px; /* тон в макет */
 }
 .post-card__title:hover {
     text-decoration: underline;
 }
-.post-card__meta {
-    color: #9aa3b2;
-    font-size: 13px;
-}
-.post-card__excerpt {
-    color: #cfd5e4;
-    margin: 10px 0 0;
-}
 
-/* Экшены */
-.post-card__actions,
-.post-actions {
-    display: flex;
-    gap: 8px;
-    margin-top: 10px;
-    align-items: center;
-}
-.mini-btn {
-    height: 30px;
-    padding: 0 10px;
+/* кнопка избранного с кастом-иконкой */
+.bookmark {
+    width: 30px;
+    height: 36px;
     border-radius: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    border: none;
     background: transparent;
-    color: #e9ecf2;
-    cursor: pointer;
+    display: grid;
+    place-items: center;
 }
-.mini-btn.is-on {
-    background: #4a3bd8;
-    border-color: #4a3bd8;
+.bookmark__img {
+    width: 18px;
+    display: block;
 }
-.mini-btn:hover {
-    background: rgba(255, 255, 255, 0.06);
-}
-
-/* Вспомогательные */
-.post-meta {
-    color: #9aa3b2;
-}
-.post-content {
-    color: #dfe5f5;
-    margin-top: 12px;
-    line-height: 1.6;
-}
-
-/* Пагинация */
-.paginator {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin: 14px 0;
-}
-.paginator__info {
-    color: #9aa3b2;
-}
-/* Верхняя строка карточки: автор слева, избранное справа */
-.post-card__header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 8px;
+.bookmark:hover {
+    scale: 1.1;
 }
 
 .post-author {
@@ -104,165 +565,176 @@
     gap: 10px;
 }
 .post-avatar {
-    width: 36px;
-    height: 36px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     object-fit: cover;
-    background: #22252d;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-}
-.post-author__meta {
-    line-height: 1.1;
 }
 .post-author__name {
     color: #e9ecf2;
-    font-size: 14px;
+    font-size: 16px;
+    font-family: 'Inria Serif', serif;
 }
 .post-author__date {
-    color: #9aa3b2;
-    font-size: 12px;
-    margin-top: 2px;
-}
-
-/* Иконка «избранное» в хедере */
-.fav-icon {
-    width: 34px;
-    height: 34px;
-    border-radius: 10px;
-    background: transparent;
-    color: #cfd5e4;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    cursor: pointer;
-    display: grid;
-    place-items: center;
+    color: #d9d9d9;
     font-size: 16px;
-}
-.fav-icon.is-on {
-    background: #4a3bd8;
-    border-color: #4a3bd8;
-    color: #fff;
-}
-.fav-icon:hover {
-    background: rgba(255, 255, 255, 0.06);
+    text-align: right;
 }
 
-/* Чипы категорий */
+/* текст */
+.post-card__excerpt {
+    position: relative;
+    z-index: 1;
+    color: #d9d9d9;
+    margin: 10px 0 40px;
+    padding-right: 35px;
+}
+
+/* низ карточки: теги слева, дата справа */
+.post-card__footer {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* теги */
 .post-card__cats {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
-    margin: 4px 0 2px;
+    gap: 8px;
 }
 .cat-chip {
     display: inline-block;
-    padding: 2px 8px;
+    padding: 4px 10px;
     border-radius: 999px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    color: #cfd5e4;
-    font-size: 12px;
+    font-size: 16px;
+    line-height: 1;
 }
-.filters {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    align-items: center;
+.cat-chip--violet {
+    background: #281456;
+    border: 1px solid #15111d;
+    color: #e9ecf2;
 }
 
-/* Категории dropdown */
-.category-dd {
-    position: relative;
+.post-card--figma:hover .post-card--figma:focus-within {
+    opacity: 1;
+    pointer-events: auto;
 }
 
-.category-dd__button {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 12px;
-    border-radius: 8px;
-    border: 1px solid #d0d7de;
-    background: #fff;
-    cursor: pointer;
+/* hover карточки */
+.post-card--figma:hover {
+    border-color: rgba(255, 255, 255, 0.16);
+    box-shadow: 0 14px 36px rgba(0, 0, 0, 0.45);
 }
 
-.category-dd__button .caret {
-    width: 0;
-    height: 0;
-    border-left: 5px solid transparent;
-    border-right: 5px solid transparent;
-}
-.category-dd__button .caret.down {
-    border-top: 6px solid #666;
-}
-.category-dd__button .caret.up {
-    border-bottom: 6px solid #666;
+/* скрытого блока экшенов больше нет — на всякий отключим */
+.post-card__actions {
+    display: none !important;
 }
 
-.category-dd__panel {
-    position: absolute;
-    top: calc(100% + 6px);
-    left: 0;
-    min-width: 240px;
-    max-height: 280px;
-    overflow: auto;
-    background: #fff;
-    border: 1px solid #d0d7de;
-    border-radius: 10px;
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);
-    padding: 8px;
-    z-index: 1000;
+/* ===================== Favorites ===================== */
+.fav-title {
+    margin-bottom: 12px;
+    color: #e9ecf2;
+    font-family: 'Inria Serif', serif;
+    font-size: 28px;
+    font-weight: bold;
 }
 
-.category-dd__actions {
-    display: flex;
-    justify-content: space-between;
-    gap: 8px;
-    margin-bottom: 8px;
-}
+/* ===================== Categories ===================== */
 
-.category-dd__actions > button {
-    padding: 6px 10px;
-    border: 1px solid #d0d7de;
-    border-radius: 8px;
-    background: #f6f8fa;
-    cursor: pointer;
+.cat-title {
+    margin-bottom: 12px;
+    color: #e9ecf2;
+    font-family: 'Inria Serif', serif;
+    font-size: 28px;
+    font-weight: bold;
 }
-
-.category-dd__list {
+.cat-grid--figma {
     display: grid;
-    gap: 6px;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 24px 28px;
+    align-items: stretch;
+    margin-top: 12px;
 }
 
-.category-dd__item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+.cat-card--figma {
+    position: relative;
     cursor: pointer;
+    background: #15111d;
+
+    border: 1px solid #15111d;
+    border-radius: 18px;
+    padding: 20px;
+    min-height: 180px; /* визуально выровнять высоту как в макете */
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35);
+    transition: border-color 0.18s ease, box-shadow 0.18s ease,
+        transform 0.06s ease;
+    overflow: hidden;
 }
 
-.category-dd__empty {
-    color: #8c959f;
-    font-size: 14px;
-    padding: 6px 2px;
+.cat-card--figma:hover {
+    border-color: rgba(255, 255, 255, 0.12);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
 }
-/* чтобы текст точно был виден на белом фоне */
-.category-dd__panel {
-    color: #111;
+
+.cat-card--figma:active {
+    transform: translateY(0.5px);
 }
-.category-dd__item span {
-    color: #111;
+
+/* фиолетовая «дымка» как на макете */
+.cat-card__glow {
+    content: '';
+    position: absolute;
+    top: -28%;
+    left: -18%;
+    width: 85%;
+    height: 70%;
+    background: radial-gradient(
+        45% 45% at 50% 50%,
+        rgba(138, 92, 255, 0.55) 0%,
+        rgba(138, 92, 255, 0.22) 36%,
+        rgba(138, 92, 255, 0) 70%
+    );
+    filter: blur(6px) saturate(115%);
+    pointer-events: none;
+    z-index: 0;
 }
-/* добавь в общий css */
-.header-search {
-    display: flex;
-    gap: 8px;
-    margin: 0 16px;
-    align-items: center;
+/* немного «разбрасываем» свечение по сетке */
+.cat-grid--figma .cat-card--figma:nth-child(2n) .cat-card__glow {
+    left: auto;
+    right: -18%;
+    top: -26%;
 }
-.header-search input[type='search'] {
-    min-width: 260px;
-    padding: 8px 10px;
-    border-radius: 8px;
-    border: 1px solid #d0d7de;
-    background: #fff;
-    color: #111;
+.cat-grid--figma .cat-card--figma:nth-child(3n) .cat-card__glow {
+    left: -10%;
+    top: -32%;
+}
+
+.cat-card__title {
+    position: relative;
+    z-index: 1;
+    margin: 0 0 10px;
+    color: #e9ecf2;
+    font-size: 26px; /* визуально совпадает с макетом для карточки */
+}
+
+.cat-card__desc {
+    position: relative;
+    z-index: 1;
+    margin: 0;
+    color: #d9d9d9;
+    font-size: 16px;
+}
+
+/* доступность */
+.cat-card--figma:focus-visible {
+    outline: 2px solid #6e6be8;
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px rgba(110, 107, 232, 0.25);
 }

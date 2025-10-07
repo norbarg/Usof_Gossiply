@@ -6,6 +6,8 @@ import RouterView from './routes';
 import { fetchMeFromToken } from '../features/auth/authActions';
 import { onRouteChange } from '../shared/router/helpers';
 import AuthBackground from '../shared/components/AuthBackground';
+import DarkVeil from '../shared/components/DarkVeil';
+import '../shared/styles/DarkVeil.css';
 import '../shared/styles/auth.css';
 
 // теперь работаем с history API → проверяем именно pathname
@@ -26,9 +28,24 @@ export default function App() {
 
     return (
         <>
+            {/* ФИКСИРОВАННЫЙ ФОН ПОД ВСЕМ UI */}
+            <div className="bg-veilshell" aria-hidden>
+                <DarkVeil
+                    hueShift={-12}
+                    noiseIntensity={0.035}
+                    scanlineIntensity={0.18}
+                    scanlineFrequency={0.06}
+                    speed={0.55}
+                    warpAmount={0.1}
+                    resolutionScale={1} // можно 0.75–1.0 для баланса FPS/чёткости
+                />
+            </div>
             {!hideHeader && <Header />}
             {hideHeader && <AuthBackground />}
-            <main className={hideHeader ? 'auth-main' : ''}>
+            <main
+                className={`page ${hideHeader ? 'auth-main' : ''}`}
+                data-scroller
+            >
                 <RouterView />
             </main>
         </>
