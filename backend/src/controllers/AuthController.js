@@ -35,110 +35,195 @@ function renderVerifyPage({
     const NOISE =
         'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIW2P4z8DwHwAF3gJ1c6CQLgAAAABJRU5ErkJggg==';
 
-    return `<!doctype html>
+    return `<!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>${title} · Gossiply</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inria+Serif:wght@400;700&display=swap">
-  <style>
-    :root{
-      --bg:#0d0b12;
-      --card:#15111d;
-      --border:rgba(255,255,255,0.12);
-      --text:#e9ecf2;
-      --muted:#cfd5e4;
-      --violet:#6e6be8;
-      --violet-2:#8a5cff;
-      --radius:40px;
-    }
-    *{box-sizing:border-box}
-    html,body{height:100%}
-    body{
-      margin:0;
-      background: var(--bg);
-      color: var(--text);
-      font-family: "Inria Serif", ui-serif, Georgia, serif;
-      display:grid;
-      place-items:center;
-      overflow:hidden;
-    }
-    .veil{
-      position:fixed; inset:0; z-index:0;
-      background:
-        radial-gradient(60% 50% at 70% 15%, rgba(138,92,255,0.35) 0%, rgba(138,92,255,0.10) 35%, transparent 70%),
-        radial-gradient(45% 40% at 15% 35%, rgba(110,107,232,0.35) 0%, rgba(110,107,232,0.10) 35%, transparent 70%),
-        var(--bg);
-      filter:saturate(115%);
-    }
-    .veil::after{
-      content:""; position:absolute; inset:-50%;
-      background:url(${NOISE}) repeat 0 0 / 200px 200px;
-      opacity:.08; animation: drift 14s linear infinite;
-    }
-    @keyframes drift{
-      to { transform: translate3d(200px,120px,0) }
-    }
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width,initial-scale=1" />
+        <title>${title} · Gossiply</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link
+            rel="stylesheet"
+            href="https://fonts.googleapis.com/css2?family=Inria+Serif:wght@400;700&display=swap"
+        />
+        <style>
+            :root {
+                --bg: #0d0b12;
+                --card: #15111d;
+                --border: rgba(255, 255, 255, 0.12);
+                --text: #e9ecf2;
+                --muted: #cfd5e4;
+                --violet: #6e6be8;
+                --violet-2: #8a5cff;
+                --radius: 40px;
+            }
+            * {
+                box-sizing: border-box;
+            }
+            html,
+            body {
+                height: 100%;
+            }
+            body {
+                margin: 0;
+                background: var(--bg);
+                color: var(--text);
+                font-family: 'Inria Serif', ui-serif, Georgia, serif;
+                display: grid;
+                place-items: center;
+                overflow: hidden;
+            }
+            .veil {
+                position: fixed;
+                inset: 0;
+                z-index: 0;
+                background: radial-gradient(
+                        60% 50% at 70% 15%,
+                        rgba(138, 92, 255, 0.35) 0%,
+                        rgba(138, 92, 255, 0.1) 35%,
+                        transparent 70%
+                    ),
+                    radial-gradient(
+                        45% 40% at 15% 35%,
+                        rgba(110, 107, 232, 0.35) 0%,
+                        rgba(110, 107, 232, 0.1) 35%,
+                        transparent 70%
+                    ),
+                    var(--bg);
+                filter: saturate(115%);
+            }
+            .veil::after {
+                content: '';
+                position: absolute;
+                inset: -50%;
+                background: url(${NOISE}) repeat 0 0 / 200px 200px;
+                opacity: 0.08;
+                animation: drift 14s linear infinite;
+            }
+            @keyframes drift {
+                to {
+                    transform: translate3d(200px, 120px, 0);
+                }
+            }
 
-    .wrap{ position:relative; z-index:1; width:min(760px,96vw); padding:24px; }
-    .card{
-      background:var(--card);
-      border:1px solid var(--border);
-      border-radius:var(--radius);
-      padding:34px 36px 30px;
-      box-shadow:0 10px 28px rgba(0,0,0,.35);
-      animation: rise .45s ease both;
-    }
-    @keyframes rise {
-      from { opacity:0; transform: translateY(8px) scale(.98) }
-      to   { opacity:1; transform: none }
-    }
+            .wrap {
+                position: relative;
+                z-index: 1;
+                width: min(760px, 96vw);
+                padding: 24px;
+            }
+            .card {
+                background: var(--card);
+                border: 1px solid var(--border);
+                border-radius: var(--radius);
+                padding: 34px 36px 30px;
+                box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+                animation: rise 0.45s ease both;
+            }
+            @keyframes rise {
+                from {
+                    opacity: 0;
+                    transform: translateY(8px) scale(0.98);
+                }
+                to {
+                    opacity: 1;
+                    transform: none;
+                }
+            }
 
-    .header{
-      display:grid; grid-template-columns:40px 1fr; gap:14px; align-items:center; margin-bottom:12px;
-    }
-    .logo{
-      width:36px; height:36px; object-fit:contain; filter: drop-shadow(0 0 10px rgba(110,107,232,.35));
-    }
-    h1{ margin:0; font-size:28px; }
-    .ok{ color: var(--text); }
-    .bad{ color: #ff6b7a; }
+            .header {
+                display: grid;
+                grid-template-columns: 40px 1fr;
+                gap: 14px;
+                align-items: center;
+                margin-bottom: 12px;
+            }
+            .logo {
+                width: 36px;
+                height: 36px;
+                object-fit: contain;
+                filter: drop-shadow(0 0 10px rgba(110, 107, 232, 0.35));
+            }
+            h1 {
+                margin: 0;
+                font-size: 28px;
+            }
+            .ok {
+                color: var(--text);
+            }
+            .bad {
+                color: #ff6b7a;
+            }
 
-    .msg{ margin:12px 0 6px; color:var(--text); font-size:18px; line-height:1.4 }
-    .sub{ margin:0 0 18px; color:var(--muted); font-size:16px }
+            .msg {
+                margin: 12px 0 6px;
+                color: var(--text);
+                font-size: 18px;
+                line-height: 1.4;
+            }
+            .sub {
+                margin: 0 0 18px;
+                color: var(--muted);
+                font-size: 16px;
+            }
 
-    .cta{
-      display:flex; gap:10px; align-items:center; justify-content:flex-end;
-      border-top:1px dashed rgba(255,255,255,.12); padding-top:14px;
-    }
-    .btn{
-      appearance:none; cursor:pointer; border-radius:14px; border:1px solid rgba(255,255,255,.14);
-      background: linear-gradient(180deg, rgba(110,107,232,.25), rgba(110,107,232,.16));
-      color:#fff; font-family:inherit; font-size:16px; line-height:1;
-      padding:10px 14px;
-      text-decoration:none; display:inline-flex; align-items:center; gap:10px;
-      transition: transform .06s ease, box-shadow .2s ease, border-color .2s ease;
-    }
-    .btn:hover{ box-shadow:0 6px 22px rgba(110,107,232,.28); border-color: rgba(110,107,232,.55); }
-    .btn:active{ transform: translateY(1px) }
+            .cta {
+                display: flex;
+                gap: 10px;
+                align-items: center;
+                justify-content: flex-end;
+                border-top: 1px solid #7c7c7c;
+                padding-top: 14px;
+            }
+            .btn {
+                appearance: none;
+                cursor: pointer;
+                border-radius: 14px;
+                border: 1px solid rgba(255, 255, 255, 0.14);
+                background: linear-gradient(
+                    180deg,
+                    rgba(110, 107, 232, 0.25),
+                    rgba(110, 107, 232, 0.16)
+                );
+                color: #fff;
+                font-family: inherit;
+                font-size: 16px;
+                line-height: 1;
+                padding: 10px 14px;
+                text-decoration: none;
+                display: inline-flex;
+                align-items: center;
+                gap: 10px;
+                transition: transform 0.06s ease, box-shadow 0.2s ease,
+                    border-color 0.2s ease;
+            }
+            .btn:hover {
+                box-shadow: 0 6px 22px rgba(110, 107, 232, 0.28);
+                border-color: rgba(110, 107, 232, 0.55);
+            }
+            .btn:active {
+                transform: translateY(1px);
+            }
 
-    .icon{
-      width:18px; height:18px; display:inline-block; border-radius:50%;
-      background: ${
-          /* small glowing dot */ ''
-      } radial-gradient(50% 50% at 50% 50%, var(--violet-2) 0%, var(--violet) 60%, transparent 70%);
-      box-shadow: 0 0 14px rgba(110,107,232,.6);
-    }
-    .status{
-      display:flex; align-items:center; gap:10px; margin:8px 0 2px; font-size:16px; color:var(--muted);
-    }
+            .status {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                margin: 8px 0 2px;
+                font-size: 16px;
+                color: var(--muted);
+            }
 
-    /* auto-fade after redirect */
-    .fade-out{ animation: fadeout .4s ease forwards; }
-    @keyframes fadeout{ to{ opacity:0 } }
-  </style>
+            /* auto-fade after redirect */
+            .fade-out {
+                animation: fadeout 0.4s ease forwards;
+            }
+            @keyframes fadeout {
+                to {
+                    opacity: 0;
+                }
+            }
+        </style>
 </head>
 <body>
   <div class="veil" aria-hidden></div>
@@ -146,14 +231,13 @@ function renderVerifyPage({
     <section class="card" id="card">
       <div class="header">
         <img class="logo" src="${FRONTEND_ORIGIN}/logo.svg" alt="">
-        <h1 class="${ok ? 'ok' : 'bad'}">${title} ${ok ? '✅' : '⚠️'}</h1>
+        <h1 class="${ok ? 'ok' : 'bad'}">${title} ${ok ? '' : '⚠️'}</h1>
       </div>
 
       <p class="msg">${message}</p>
       <p class="sub">${submessage}</p>
 
       <div class="status">
-        <span class="icon" aria-hidden></span>
         <span>Redirecting to the app…</span>
       </div>
 
