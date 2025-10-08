@@ -738,3 +738,26 @@
     outline-offset: 2px;
     box-shadow: 0 0 0 4px rgba(110, 107, 232, 0.25);
 }
+
+/* Welcome overlay */
+.welcome-veil {
+    position: fixed;
+    inset: 0;
+    z-index: 2000; /* выше хедера */
+    display: grid;
+    place-items: center;
+    background: rgba(0, 0, 0, 0.55); /* затемнение всего фона */
+    backdrop-filter: blur(2px) saturate(120%);
+    pointer-events: all; /* блокируем клики под ним */
+}
+
+.welcome-veil__title {
+    font-family: 'Inria Serif', serif;
+    font-weight: 400;
+    font-size: clamp(28px, 6.8vw, 72px);
+    line-height: 1.1;
+    color: #e9ecf2;
+    text-align: center;
+    letter-spacing: 0.5px;
+    text-shadow: 0 2px 24px rgba(110, 107, 232, 0.35);
+}

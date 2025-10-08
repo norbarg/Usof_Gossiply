@@ -34,6 +34,7 @@ export const login =
             const token = data.token;
             localStorage.setItem('token', token);
             dispatch(setToken(token));
+            sessionStorage.setItem('justLoggedIn', '1');
             await dispatch(fetchMeFromToken());
         } catch (e) {
             dispatch(setError(e?.response?.data?.error || 'Login failed'));

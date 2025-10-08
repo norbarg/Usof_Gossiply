@@ -1,12 +1,14 @@
 // frontend/src/app/App.jsx
-import React, { useEffect, useState } from 'react';
-import { useDispatch } from 'react-redux';
+import React, { useEffect, useRef, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import Header from '../shared/components/Header';
 import RouterView from './routes';
 import { fetchMeFromToken } from '../features/auth/authActions';
 import { onRouteChange } from '../shared/router/helpers';
 import AuthBackground from '../shared/components/AuthBackground';
 import DarkVeil from '../shared/components/DarkVeil';
+import WelcomeOverlay from '../shared/components/WelcomeOverlay';
+import { AnimatePresence } from 'motion/react';
 import '../shared/styles/DarkVeil.css';
 import '../shared/styles/auth.css';
 
@@ -19,10 +21,27 @@ export default function App() {
     const dispatch = useDispatch();
     const [path, setPath] = useState(location.pathname);
 
+    // берём юзера, чтобы понять момент входа
+    const { user } = useSelector((s) => s.auth);
+    const prevUserRef = useRef(null);
+    const [showWelcome, setShowWelcome] = useState(false);
+
     useEffect(() => {
         dispatch(fetchMeFromToken());
     }, [dispatch]);
     useEffect(() => onRouteChange(() => setPath(location.pathname)), []);
+
+    // Показать welcome, когда было null, а стало truthy
+    useEffect(() => {
+        const prev = prevUserRef.current;
+        const just = sessionStorage.getItem('justLoggedIn') === '1';
+        if (!prev && user && just) {
+            setShowWelcome(true);
+            // флаг израсходован — чтобы не сработало при перезагрузке
+            sessionStorage.removeItem('justLoggedIn');
+        }
+        prevUserRef.current = user;
+    }, [user]);
 
     const hideHeader = isAuthPath(path);
 
@@ -48,6 +67,16 @@ export default function App() {
             >
                 <RouterView />
             </main>
+            {/* Welcome overlay (только сразу после логина) */}
+            <AnimatePresence>
+                {showWelcome && (
+                    <WelcomeOverlay
+                        visible
+                        text="Welcome to Gossiply"
+                        onDone={() => setShowWelcome(false)}
+                    />
+                )}
+            </AnimatePresence>
         </>
     );
 }
