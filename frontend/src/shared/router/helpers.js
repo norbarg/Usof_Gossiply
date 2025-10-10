@@ -1,13 +1,30 @@
 // МИНИ-РОУТЕР БЕЗ # (History API)
 
 // Переход на путь
-export function navigate(path) {
+export function navigate(to, options = {}) {
+    // Число → history.go(N), чтобы работало navigate(-1)
+    if (typeof to === 'number' && Number.isInteger(to)) {
+        window.history.go(to);
+        return;
+    }
+    // Иначе — строковый путь
+    let path = String(to ?? '/');
     if (!path.startsWith('/')) path = '/' + path;
-    window.history.pushState({}, '', path);
-    // вручную шлём событие, чтобы подписчики обновились
+    if (options.replace) {
+        window.history.replaceState({}, '', path);
+    } else {
+        window.history.pushState({}, '', path);
+    }
+    // уведомляем подписчиков
     window.dispatchEvent(new PopStateEvent('popstate'));
 }
 
+export function back() {
+    window.history.back();
+}
+export function forward() {
+    window.history.forward();
+}
 // Нормализация пути: только pathname, без query/hash и без хвостового /
 function cleanPath(p) {
     const onlyPath = (p || '').split('?')[0].split('#')[0] || '/';

@@ -117,9 +117,14 @@ export const listPosts =
 
 /** загрузка детали поста */
 export const fetchPost = (id) => async (dispatch) => {
+    const postId = Number(id);
+    if (!Number.isFinite(postId)) {
+        // мягко завершаем без запроса — роутер сам покажет “Not found”/скелетон
+        return;
+    }
     dispatch(setLoading(true));
     try {
-        const { data } = await api.get(`/posts/${id}`);
+        const { data } = await api.get(`/posts/${postId}`);
         dispatch(setOne(data));
     } catch (e) {
         dispatch(setError(e?.response?.data?.error || 'Failed to load post'));
@@ -209,3 +214,42 @@ export const loadMyFavoriteIds = () => async (dispatch, getState) => {
         /* no-op */
     }
 };
+// payload: { title, contentBlocks (array), categories (array of ids), desiredStatus }
+export const createPost =
+    ({
+        title,
+        contentBlocks = [],
+        categories = [],
+        desiredStatus = 'active',
+    }) =>
+    async (dispatch, getState) => {
+        try {
+            // бэку нужны: title, content (любой JSON), categories
+            const body = {
+                title,
+                content: contentBlocks, // массив блоков [{type:'p', text:'...'}]
+                categories: categories.map((c) => +c).filter(Boolean),
+            };
+            const { data } = await api.post('/posts', body);
+            dispatch(setOne(data));
+
+            // если хотели черновик — можно попытаться (права есть только у админа)
+            if (desiredStatus === 'inactive') {
+                try {
+                    const { auth } = getState();
+                    if (auth?.user?.role === 'admin') {
+                        const upd = await api.patch(`/posts/${data.id}`, {
+                            status: 'inactive',
+                        });
+                        dispatch(setOne(upd.data));
+                        return upd.data;
+                    }
+                } catch (_) {
+                    /* игнорим — для обычного пользователя backend не даёт менять статус */
+                }
+            }
+            return data;
+        } catch (e) {
+            throw e?.response?.data?.error || e;
+        }
+    };

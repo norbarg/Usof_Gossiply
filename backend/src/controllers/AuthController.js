@@ -470,10 +470,17 @@ export const AuthController = {
             await sendEmail({ to: email, subject, html });
         } catch (mailErr) {
             console.error('Mail send error:', mailErr);
-            // Не проваливаем весь процесс; можно вернуть 500, но в dev чаще логируем и отвечаем 200
+            if (process.env.NODE_ENV !== 'development') {
+                return res
+                    .status(502)
+                    .json({
+                        error: 'Email service unavailable. Check SMTP credentials.',
+                    });
+            } else {
+                // DEV: подсказка для тестов
+                console.warn('DEV MODE: reset token =', token);
+            }
         }
-
-        // Не возвращаем сам токен в ответе
         return res.json({
             message: 'If that email exists, a reset token was sent.',
         });

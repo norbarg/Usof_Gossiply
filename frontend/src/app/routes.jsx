@@ -8,12 +8,18 @@ import PostList from '../features/posts/pages/PostList.jsx';
 import PostDetails from '../features/posts/pages/PostDetails.jsx';
 import CategoriesList from '../features/categories/pages/CategoriesList';
 import FavoritesList from '../features/favorites/pages/FavoritesList.jsx';
+import Profile from '../features/profile/pages/Profile.jsx';
+import ProfileEdit from '../features/profile/pages/ProfileEdit.jsx';
+import PostNew from '../features/posts/pages/PostNew.jsx';
 
 const routes = [
     { path: '/', component: PostList },
+    { path: '/posts/new', component: PostNew },
     { path: '/posts/:id', component: PostDetails },
     { path: '/categories', component: CategoriesList },
     { path: '/favorites', component: FavoritesList },
+    { path: '/profile', component: Profile },
+    { path: '/profile/edit', component: ProfileEdit },
     { path: '/login', component: Login },
     { path: '/register', component: Register },
     { path: '/password-reset', component: ResetPassword },

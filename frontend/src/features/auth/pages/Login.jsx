@@ -31,7 +31,12 @@ export default function Login() {
         const payload = id.includes('@')
             ? { email: id, password: form.password }
             : { login: id, password: form.password };
-        await dispatch(login(payload));
+        try {
+            await dispatch(login(payload));
+        } finally {
+            // даже если ошибка — пароль уберём из памяти
+            setForm((prev) => ({ ...prev, password: '' }));
+        }
     };
 
     // активируем кнопку: оба поля непустые
@@ -81,6 +86,7 @@ export default function Login() {
                         <input
                             className="auth-input inria-serif-regular"
                             type="password"
+                            name="password"
                             placeholder="Password..."
                             value={form.password}
                             onChange={(e) =>

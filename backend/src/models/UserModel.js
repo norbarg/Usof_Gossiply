@@ -59,6 +59,13 @@ export class UserModel extends BaseModel {
         );
         return this.findById(id);
     }
+    async findByLogin(login) {
+        const rows = await this.query(
+            `SELECT * FROM users WHERE login = :login LIMIT 1`,
+            { login }
+        );
+        return rows[0] || null;
+    }
     async deleteById(id) {
         await this.query(`DELETE FROM users WHERE id = :id`, { id });
         return true;

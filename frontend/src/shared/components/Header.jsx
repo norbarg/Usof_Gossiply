@@ -144,7 +144,16 @@ export default function Header() {
     const doLogout = async () => {
         await dispatch(logout());
         setMenuOpen(false);
-        navigate('/login');
+        // на всякий — уберём флаг приветствия
+        try {
+            sessionStorage.removeItem('justLoggedIn');
+        } catch {}
+        // перезапишем текущую запись истории на главную
+        try {
+            window.history.replaceState({}, '', '/');
+        } catch {}
+        // и добавим /login как новую запись (чтобы внутри auth back работал)
+        navigate('/login'); // важно: push, не replace
     };
 
     const go = (path) => {

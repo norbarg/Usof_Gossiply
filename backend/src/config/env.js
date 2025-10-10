@@ -11,11 +11,12 @@ export const env = {
     JWT_SECRET: process.env.JWT_SECRET || 'devsecret',
     JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '7d',
     API_URL: process.env.API_URL || 'http://localhost:3000',
+
     SMTP_HOST: process.env.SMTP_HOST || 'smtp.gmail.com',
-    SMTP_PORT: +(process.env.SMTP_PORT || 587),
-    SMTP_USER: process.env.SMTP_USER || 'lut4ui.v.mire@gmail.com',
-    SMTP_PASS: process.env.SMTP_PASS || 'stav sync xkge awci',
-    SMTP_FROM: process.env.SMTP_FROM || '"UsOf" <no-reply@usof.local>',
+    SMTP_PORT: +(process.env.SMTP_PORT || 465),
+    SMTP_USER: process.env.SMTP_USER || '',
+    SMTP_PASS: process.env.SMTP_PASS || 'ncuh dneb kack kleu',
+    SMTP_FROM: process.env.SMTP_FROM || '',
     DEFAULT_AVATAR:
         process.env.DEFAULT_AVATAR || '/uploads/avatars/default.png',
 };

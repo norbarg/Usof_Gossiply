@@ -21,4 +21,6 @@ r.delete('/:user_id', authRequired, UserController.remove); //corrected
 r.get('/me/favorites', authRequired, FavoriteController.listMine);
 r.get('/me/posts', authRequired, UserController.listMyPosts);
 
+r.get('/me/stats', authRequired, UserController.statsMe);
+r.get('/:user_id/stats', authRequired, UserController.statsById);
 export default r;
