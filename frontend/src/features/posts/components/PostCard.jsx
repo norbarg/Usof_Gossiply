@@ -75,7 +75,19 @@ export default function PostCard({
     // длиннее превью
     const previewText = makePreview({ content_plain, excerpt, max: 400 });
 
-    const openPost = () => navigate(`/posts/${id}`);
+    const openPost = (e) => {
+        if (e?.preventDefault) e.preventDefault();
+        // сохраним текущий Y в state записи с лентой
+        try {
+            const el = document.querySelector('[data-scroller]');
+            const y = el ? el.scrollTop : 0;
+            const st = history.state || {};
+            history.replaceState({ ...st, feedY: y }, '');
+            sessionStorage.setItem('feedScrollY', String(y));
+            sessionStorage.setItem('feedLock', '1'); // не даём cleanup перезаписать
+        } catch {}
+        navigate(`/posts/${id}`);
+    };
 
     return (
         <article
@@ -85,7 +97,7 @@ export default function PostCard({
             tabIndex={0}
             onClick={openPost}
             onKeyDown={(e) =>
-                (e.key === 'Enter' || e.key === ' ') && openPost()
+                (e.key === 'Enter' || e.key === ' ') && openPost(e)
             }
         >
             {/* свечение */}

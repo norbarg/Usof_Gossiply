@@ -33,8 +33,8 @@ r.get(
 
 // public list
 r.get('/', attachUserIfAny, PostController.list); //corrected
-r.get('/:post_id', PostController.getById); //corrected
-r.get('/:post_id/comments', PostController.listComments); //corrected
+r.get('/:post_id/comments', attachUserIfAny, PostController.listComments);
+r.get('/:post_id', attachUserIfAny, PostController.getById); //corrected
 r.get('/:post_id/categories', PostController.listCategories); //corrected
 r.get('/:post_id/like', PostController.likeList); //corrected
 

@@ -375,7 +375,7 @@ Node.js + Express + MySQL API for a Q&A-like forum (StackOverflow-inspired), bui
 -   `PATCH /api/posts/:post_id` (change status and cat, only admin) - command:
 
     ```
-    curl -X PATCH http://localhost:3000/api/posts/5 ^
+    curl -X PATCH http://localhost:3000/api/posts/24 ^
     -H "Authorization: %TOKEN%" ^
     -H "Content-Type: application/json" ^
     -d "{\"status\":\"inactive\",\"categories\":[2,4]}"

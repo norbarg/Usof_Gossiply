@@ -388,3 +388,19 @@ body {
     border-top: 1px solid #7c7c7c;
     margin: 18px 0;
 }
+/* делаем главным скроллером именно <main data-scroller> */
+.page[data-scroller] {
+    height: 100vh; /* занимает всю высоту окна */
+    overflow-y: auto; /* скроллимся внутри main */
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+}
+
+/* Если у тебя Header фиксированный поверх контента,
+   добавь верхний отступ под его высоту. Подставь своё значение! */
+:root {
+    --header-height: 87px;
+} /* поправь под твой реальный хедер */
+.page:not(.auth-main)[data-scroller] {
+    padding-top: var(--header-height);
+}

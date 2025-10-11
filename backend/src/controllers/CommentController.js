@@ -1,3 +1,4 @@
+// backend/src/controllers/CommentController.js
 import { Comments } from '../models/CommentModel.js';
 import { Posts } from '../models/PostModel.js';
 import { Likes } from '../models/LikeModel.js';
@@ -99,7 +100,8 @@ export const CommentController = {
             author_id: req.user.id,
             content,
         });
-        res.status(201).json(comment);
+        const full = await Comments.findByIdWithAuthor(comment.id);
+        res.status(201).json(full);
     },
     async update(req, res) {
         const id = +req.params.comment_id;

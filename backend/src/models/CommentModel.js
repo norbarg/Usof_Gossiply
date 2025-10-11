@@ -1,4 +1,16 @@
+// backend/src/models/CommentModel.js
 import { BaseModel } from './BaseModel.js';
+
+function normalizeUploadPath(s) {
+    if (!s) return s;
+    let u = String(s).trim().replace(/\\/g, '/');
+    u = u.replace(/^\/api(\/|$)/i, '/');
+    u = u.replace(/^(\/)?uploads(?=[^/])/i, '/uploads/');
+    u = u.replace(/^\/?uploads\/+/i, '/uploads/');
+    if (/^uploads\//i.test(u)) u = '/' + u;
+    u = u.replace(/^\/uploads\/avatars(?=\d)/i, '/uploads/avatars/');
+    return u;
+}
 
 export class CommentModel extends BaseModel {
     constructor() {
@@ -17,14 +29,77 @@ export class CommentModel extends BaseModel {
         });
         return rows[0] || null;
     }
-    async listByPost({ post_id, include_inactive = false }) {
-        const where = include_inactive
-            ? `post_id = :post_id`
-            : `post_id = :post_id AND status='active'`;
-        return this.query(
-            `SELECT * FROM comments WHERE ${where} ORDER BY publish_date ASC`,
-            { post_id }
+    async findByIdWithAuthor(id) {
+        const rows = await this.query(
+            `SELECT
+         c.id, c.post_id, c.author_id, c.content, c.status,
+         c.publish_date AS created_at,
+         /* раздельные счётчики реакций */
+         COALESCE((SELECT COUNT(*) FROM likes l
+                  WHERE l.comment_id = c.id AND l.type='like'), 0)    AS likes_up_count,
+         COALESCE((SELECT COUNT(*) FROM likes l
+                  WHERE l.comment_id = c.id AND l.type='dislike'), 0) AS likes_down_count,
+         /* моя реакция (viewer_id проставим 0 в этом методе — он без контекста пользователя) */
+         NULL AS my_reaction,
+         u.login AS author_login,
+         u.full_name AS author_name,
+         u.profile_picture AS author_avatar
+       FROM comments c
+       JOIN users u ON u.id = c.author_id
+       WHERE c.id = :id
+       LIMIT 1`,
+            { id }
         );
+        const r = rows[0];
+        if (!r) return null;
+        const my = r.my_reaction || null;
+        return {
+            ...r,
+            author_avatar: normalizeUploadPath(r.author_avatar),
+            my_reaction: my,
+            liked: my === 'like',
+            disliked: my === 'dislike',
+            likes_up_count: Number(r.likes_up_count || 0),
+            likes_down_count: Number(r.likes_down_count || 0),
+        };
+    }
+    async listByPost({ post_id, include_inactive = false, viewer_id = 0 }) {
+        const where = include_inactive
+            ? `c.post_id = :post_id`
+            : `c.post_id = :post_id AND c.status='active'`;
+        const rows = await this.query(
+            `SELECT
+         c.id, c.post_id, c.author_id, c.content, c.status,
+         c.publish_date AS created_at,
+         COALESCE((SELECT COUNT(*) FROM likes l
+                  WHERE l.comment_id = c.id AND l.type='like'), 0)    AS likes_up_count,
+         COALESCE((SELECT COUNT(*) FROM likes l
+                  WHERE l.comment_id = c.id AND l.type='dislike'), 0) AS likes_down_count,
+         (SELECT l.type FROM likes l
+            WHERE l.comment_id = c.id AND l.author_id = :viewer_id
+            LIMIT 1) AS my_reaction,
+         u.login AS author_login,
+         u.full_name AS author_name,
+         u.profile_picture AS author_avatar
+       FROM comments c
+       JOIN users u ON u.id = c.author_id
+       WHERE ${where}
+       ORDER BY created_at ASC`,
+            { post_id, viewer_id: +viewer_id }
+        );
+
+        return rows.map((r) => {
+            const my = r.my_reaction || null;
+            return {
+                ...r,
+                author_avatar: normalizeUploadPath(r.author_avatar),
+                my_reaction: my,
+                liked: my === 'like',
+                disliked: my === 'dislike',
+                likes_up_count: Number(r.likes_up_count || 0),
+                likes_down_count: Number(r.likes_down_count || 0),
+            };
+        });
     }
     async updateById(id, data) {
         const fields = [];
@@ -45,13 +120,40 @@ export class CommentModel extends BaseModel {
         return true;
     }
     async listByPostForViewer({ post_id, viewer_id }) {
-        return this.query(
-            `SELECT * FROM comments
-       WHERE post_id = :post_id
-         AND (status = 'active' OR (status = 'inactive' AND author_id = :viewer_id))
-       ORDER BY publish_date ASC`,
+        const rows = await this.query(
+            `SELECT
+         c.id, c.post_id, c.author_id, c.content, c.status,
+         c.publish_date AS created_at,
+         COALESCE((SELECT COUNT(*) FROM likes l
+                  WHERE l.comment_id = c.id AND l.type='like'), 0)    AS likes_up_count,
+         COALESCE((SELECT COUNT(*) FROM likes l
+                  WHERE l.comment_id = c.id AND l.type='dislike'), 0) AS likes_down_count,
+         (SELECT l.type FROM likes l
+            WHERE l.comment_id = c.id AND l.author_id = :viewer_id
+            LIMIT 1) AS my_reaction,
+         u.login AS author_login,
+         u.full_name AS author_name,
+         u.profile_picture AS author_avatar
+       FROM comments c
+       JOIN users u ON u.id = c.author_id
+       WHERE c.post_id = :post_id
+         AND (c.status = 'active' OR (c.status = 'inactive' AND c.author_id = :viewer_id))
+       ORDER BY created_at ASC`,
             { post_id, viewer_id }
         );
+
+        return rows.map((r) => {
+            const my = r.my_reaction || null;
+            return {
+                ...r,
+                author_avatar: normalizeUploadPath(r.author_avatar),
+                my_reaction: my,
+                liked: my === 'like',
+                disliked: my === 'dislike',
+                likes_up_count: Number(r.likes_up_count || 0),
+                likes_down_count: Number(r.likes_down_count || 0),
+            };
+        });
     }
 }
 export const Comments = new CommentModel();

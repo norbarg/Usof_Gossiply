@@ -194,6 +194,7 @@ export const PostController = {
         const comments = await Comments.listByPost({
             post_id: id,
             include_inactive,
+            viewer_id: req.user?.id || 0,
         });
         res.json(comments);
     },

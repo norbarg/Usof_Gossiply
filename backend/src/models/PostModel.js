@@ -1,5 +1,6 @@
 // backend/src/models/PostModel.js
 import { BaseModel } from './BaseModel.js';
+import { env } from '../config/env.js';
 
 function normalizeUploadPath(s) {
     if (!s) return s;
@@ -301,24 +302,142 @@ export class PostModel extends BaseModel {
         return Number(rows[0]?.total ?? 0);
     }
 
+    // backend/src/models/PostModel.js
     async findByIdWithFavorited(id, viewer_id = 0) {
+        const likesExpr = `COALESCE((
+    SELECT SUM(CASE WHEN l.type='like' THEN 1 WHEN l.type='dislike' THEN -1 ELSE 0 END)
+    FROM likes l
+    WHERE l.comment_id IS NULL AND l.post_id = p.id
+  ), 0)`;
+
         const sql = `
-      SELECT
-        p.*,
-        EXISTS(
-          SELECT 1 FROM favorites f
-          WHERE f.post_id = p.id AND f.user_id = :viewer_id
-        ) AS favorited
-      FROM posts p
-      WHERE p.id = :id
-      LIMIT 1
-    `;
+    SELECT
+      p.id, p.author_id, p.title, p.content, p.status,
+      p.publish_date AS created_at,
+      p.updated_at,
+
+      u.login            AS author_login,
+      u.full_name        AS author_name,
+      u.profile_picture  AS author_avatar,
+
+      ${likesExpr} AS likes_count,  /* общий “скор” (лайки - дизлайки) */
+
+        /* раздельные счётчики */
+        COALESCE((
+          SELECT COUNT(*) FROM likes l
+          WHERE l.comment_id IS NULL AND l.post_id = p.id AND l.type='like'
+        ), 0) AS likes_up_count,
+        COALESCE((
+          SELECT COUNT(*) FROM likes l
+          WHERE l.comment_id IS NULL AND l.post_id = p.id AND l.type='dislike'
+        ), 0) AS likes_down_count,
+
+        /* моя реакция (если залогинен) */
+        (SELECT l.type
+         FROM likes l
+         WHERE l.comment_id IS NULL AND l.post_id = p.id AND l.author_id = :viewer_id
+         LIMIT 1) AS my_reaction,
+
+      COALESCE((SELECT COUNT(*) FROM favorites f WHERE f.post_id = p.id), 0) AS favorites_count,
+
+      COALESCE((
+        SELECT COUNT(*) FROM comments c
+        WHERE c.post_id = p.id AND c.status = 'active'
+      ), 0) AS comments_count,
+
+      EXISTS(SELECT 1 FROM favorites f WHERE f.post_id = p.id AND f.user_id = :viewer_id) AS favorited,
+
+      (
+        SELECT GROUP_CONCAT(DISTINCT c.title ORDER BY c.title SEPARATOR ',')
+        FROM post_categories pc
+        JOIN categories c ON c.id = pc.category_id
+        WHERE pc.post_id = p.id
+      ) AS categories_csv
+
+    FROM posts p
+    JOIN users u ON u.id = p.author_id
+    WHERE p.id = :id
+    LIMIT 1
+  `;
+
         const rows = await this.query(sql, { id: +id, viewer_id: +viewer_id });
         const r = rows[0];
         if (!r) return null;
 
-        // при желании можешь тут же нормализовать avatar/categories, как в list()
-        return { ...r, favorited: !!r.favorited };
+        // --- контент: строка с JSON -> массив блоков; HTML оставляем как строку
+        let content = r.content;
+
+        try {
+            // распарсим если это JSON (строка)
+            let v = content;
+            if (
+                typeof v === 'string' &&
+                (v.trim().startsWith('[') || v.trim().startsWith('{'))
+            ) {
+                v = JSON.parse(v);
+            }
+
+            // поддержка и формата [ ... ], и { blocks:[ ... ] }
+            let blocks = Array.isArray(v)
+                ? v
+                : v && Array.isArray(v.blocks)
+                ? v.blocks
+                : null;
+
+            if (blocks) {
+                // Н О Р М А Л И З А Ц И Я  Т И П О В
+                content = blocks.map((b) => {
+                    if (!b) return b;
+                    const t = String(b.type || '').toLowerCase();
+
+                    // приводим к тем типам, которые умеет фронт
+                    let type = t;
+                    if (t === 'text' || t === 'paragraph') type = 'p';
+                    if (t === 'image' || t === 'photo' || t === 'img')
+                        type = 'img';
+
+                    // единый ключ для картинки
+                    let url = b.url || b.src || b.path || '';
+                    if (type === 'img' && url) {
+                        url = normalizeUploadPath(url); // относительные /uploads/... поправим
+                    }
+
+                    const out = { ...b, type };
+                    if (type === 'img') out.url = url;
+                    return out;
+                });
+            }
+            // иначе оставим как есть (вдруг это чистый HTML)
+        } catch (_) {
+            /* оставим как есть */
+        }
+
+        const author_avatar = normalizeUploadPath(r.author_avatar);
+        const categories = r.categories_csv
+            ? r.categories_csv.split(',').filter(Boolean)
+            : [];
+
+        const my_reaction = r.my_reaction || null;
+        const liked = my_reaction === 'like';
+        const disliked = my_reaction === 'dislike';
+        return {
+            ...r,
+            content,
+            favorited: !!r.favorited,
+            author_avatar,
+            categories,
+            my_reaction,
+            liked,
+            disliked,
+            likes_up_count: Number(r.likes_up_count || 0),
+            likes_down_count: Number(r.likes_down_count || 0),
+            author: {
+                id: r.author_id,
+                login: r.author_login,
+                full_name: r.author_name,
+                avatar: author_avatar,
+            },
+        };
     }
 
     async updateById(id, data) {

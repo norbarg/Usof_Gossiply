@@ -60,16 +60,21 @@ export function postsReducer(state = initial, action) {
         case POSTS_SET_META:
             return { ...state, meta: { ...state.meta, ...action.payload } };
         case POST_SET_ONE: {
-            const upd = action.payload; // { id, ...patch }
-            const nextItems = state.items.map((it) =>
-                it.id === upd.id ? { ...it, ...upd } : it
-            );
-            const nextCurrent =
-                state.current && state.current.id === upd.id
-                    ? { ...state.current, ...upd }
-                    : state.current;
-
-            return { ...state, items: nextItems, current: nextCurrent };
+            const upd = action.payload;
+            let found = false;
+            const nextItems = (state.items || []).map((it) => {
+                if (it.id === upd.id) {
+                    found = true;
+                    return { ...it, ...upd };
+                }
+                return it;
+            });
+            const items = found ? nextItems : [upd, ...state.items];
+            return {
+                ...state,
+                items,
+                current: { ...(state.current || {}), ...upd },
+            };
         }
         case POSTS_SET_FAV_IDS: {
             const favoriteIds = Array.isArray(action.payload)

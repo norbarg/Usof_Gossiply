@@ -5,8 +5,8 @@ import api from '../../../shared/api/axios';
 import PostCard from '../../posts/components/PostCard';
 import { toggleFavorite, toggleLike } from '../../posts/postsActions';
 import { navigate } from '../../../shared/router/helpers';
-import favOff from '../../../../public/icons/fav_off.png';
-import favOn from '../../../../public/icons/fav_on.png';
+import favOff from '/icons/fav_off.png';
+import favOn from '/icons/fav_on.png';
 import '../../../shared/styles/feed.css';
 
 export default function FavoritesList() {

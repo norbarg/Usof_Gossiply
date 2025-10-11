@@ -134,32 +134,87 @@ export const fetchPost = (id) => async (dispatch) => {
     }
 };
 
-/** лайк/избранное — оптимистично меняем локальный стейт */
-export const toggleLike = (postId) => async (dispatch, getState) => {
-    const { posts } = getState();
-    const post = posts.items.find((p) => p.id === postId) || posts.current;
-    if (!post) return;
+/** универсальное переключение реакции: 'like' | 'dislike' */
+export const toggleReaction =
+    (postId, nextType /* 'like' | 'dislike' */) =>
+    async (dispatch, getState) => {
+        const { posts } = getState();
+        const post = posts.items.find((p) => p.id === postId) || posts.current;
+        if (!post) return;
 
-    const liked = !post.liked;
-    const likes_count = (post.likes_count ?? 0) + (liked ? 1 : -1);
+        const current =
+            post.my_reaction ||
+            (post.liked ? 'like' : post.disliked ? 'dislike' : null);
+        let likesUp = Number(post.likes_up_count ?? 0);
+        let likesDown = Number(post.likes_down_count ?? 0);
 
-    dispatch(setOne({ ...post, liked, likes_count })); // меняем likes_count
+        let patch = {};
 
-    try {
-        // Лучше явно слать тип (бэк его понимает), а для “снять лайк” — DELETE:
-        if (liked) {
-            await api.post(`/posts/${postId}/like`, { type: 'like' });
-        } else {
-            await api.delete(`/posts/${postId}/like`);
+        if (current === nextType) {
+            // убрать реакцию
+            if (nextType === 'like') likesUp = Math.max(0, likesUp - 1);
+            if (nextType === 'dislike') likesDown = Math.max(0, likesDown - 1);
+            patch = {
+                my_reaction: null,
+                liked: false,
+                disliked: false,
+                likes_up_count: likesUp,
+                likes_down_count: likesDown,
+                likes_count: likesUp - likesDown,
+            };
+
+            // оптимистично
+            dispatch(setOne({ ...post, ...patch }));
+            try {
+                await api.delete(`/posts/${postId}/like`);
+            } catch (e) {
+                // откат
+                dispatch(setOne(post));
+                throw e;
+            }
+            return;
         }
-    } catch (e) {
-        // откат
-        dispatch(
-            setOne({ ...post, liked: !liked, likes_count: post.likes_count })
-        );
-        throw e;
-    }
-};
+
+        // переключаемся или ставим новую
+        if (nextType === 'like') {
+            if (current === 'dislike') likesDown = Math.max(0, likesDown - 1);
+            likesUp += 1;
+            patch = {
+                my_reaction: 'like',
+                liked: true,
+                disliked: false,
+                likes_up_count: likesUp,
+                likes_down_count: likesDown,
+                likes_count: likesUp - likesDown,
+            };
+        } else {
+            // 'dislike'
+            if (current === 'like') likesUp = Math.max(0, likesUp - 1);
+            likesDown += 1;
+            patch = {
+                my_reaction: 'dislike',
+                liked: false,
+                disliked: true,
+                likes_up_count: likesUp,
+                likes_down_count: likesDown,
+                likes_count: likesUp - likesDown,
+            };
+        }
+
+        // оптимистично
+        dispatch(setOne({ ...post, ...patch }));
+        try {
+            await api.post(`/posts/${postId}/like`, { type: nextType });
+        } catch (e) {
+            // откат
+            dispatch(setOne(post));
+            throw e;
+        }
+    };
+
+export const toggleLike = (postId) => toggleReaction(postId, 'like');
+
+export const toggleDislike = (postId) => toggleReaction(postId, 'dislike');
 
 // postsActions.js
 export const toggleFavorite =

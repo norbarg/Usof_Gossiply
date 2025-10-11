@@ -252,7 +252,7 @@
     text-transform: lowercase; /* как на превью: "user" */
 }
 
-/* ===================== Bubble filters ===================== */
+/* ========================================== Bubble filters ==================================================== */
 
 .filters--bubble {
     display: flex;
@@ -760,4 +760,67 @@
     text-align: center;
     letter-spacing: 0.5px;
     text-shadow: 0 2px 24px rgba(110, 107, 232, 0.35);
+}
+/* ========================================== Post details ==================================================== */
+
+.post-meta {
+    color: #a9a9b0;
+    font-size: 14px;
+    margin-bottom: 10px;
+}
+
+.post-content {
+    font-size: 16px;
+    line-height: 1.6;
+    color: #e9ecf2;
+}
+.post-content p {
+    margin: 0 0 12px;
+}
+.post-content h2 {
+    margin: 16px 0 8px;
+    font-size: 22px;
+}
+.post-content h3 {
+    margin: 14px 0 6px;
+    font-size: 18px;
+}
+.post-content ul {
+    padding-left: 18px;
+    margin: 10px 0;
+}
+
+.post-img {
+    margin: 14px 0;
+}
+.post-img img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    border-radius: 10px;
+    border: 1px solid var(--modal-line, rgba(255, 255, 255, 0.12));
+    background: #0e0e12;
+}
+.post-img figcaption {
+    font-size: 13px;
+    color: #a9a9b0;
+    margin-top: 4px;
+}
+
+.post-actions {
+    display: flex;
+    gap: 8px;
+    margin: 14px 0 4px;
+}
+.mini-btn {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--modal-line, rgba(255, 255, 255, 0.12));
+    color: #e9ecf2;
+    border-radius: 10px;
+    padding: 6px 10px;
+    cursor: pointer;
+}
+.mini-btn.is-on {
+    background: #281456;
+    border-color: #15111d;
 }
