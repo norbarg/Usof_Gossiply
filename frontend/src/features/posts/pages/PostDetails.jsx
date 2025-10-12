@@ -6,6 +6,8 @@ import {
     toggleLike,
     toggleFavorite,
     toggleDislike,
+    updatePost,
+    deletePost,
 } from '../postsActions';
 import { matchPath, parsePath, navigate } from '../../../shared/router/helpers';
 import { formatDate } from '../../../shared/utils/format';
@@ -60,6 +62,29 @@ function asArray(payload) {
     return [];
 }
 
+// строим дерево: родители сверху, у каждого .replies[]
+function buildTree(rows) {
+    const byId = new Map();
+    rows.forEach((r) => byId.set(r.id, { ...r, replies: [] }));
+    const roots = [];
+    byId.forEach((c) => {
+        if (c.parent_id) {
+            const parent = byId.get(c.parent_id);
+            if (parent) parent.replies.push(c);
+            else roots.push(c); // fallback если пришёл некорректный parent
+        } else {
+            roots.push(c);
+        }
+    });
+    // сортировка внутри веток по дате (на всякий)
+    const sortRec = (list) => {
+        list.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+        list.forEach((n) => sortRec(n.replies));
+    };
+    sortRec(roots);
+    return roots;
+}
+
 function Content({ content }) {
     if (Array.isArray(content)) return <Blocks blocks={content} />;
     if (
@@ -94,18 +119,28 @@ export default function PostDetails() {
     const { current: post, loading, error } = useSelector((s) => s.posts);
     const auth = useSelector((s) => s.auth);
     const [comments, setComments] = useState([]);
+    const [replyOpenFor, setReplyOpenFor] = useState(null);
+    const [replyText, setReplyText] = useState('');
     const [cLoading, setCLoading] = useState(false);
     const [newComment, setNewComment] = useState('');
     const [sending, setSending] = useState(false);
+    const [deleting, setDeleting] = useState(false);
 
-    function handleBack() {
-        history.back();
+    function goBackSmart() {
+        if (window.history.length > 1) return history.back();
+        const fallback = sessionStorage.getItem('back:fallback') || '/posts';
+        navigate(fallback);
     }
+    const handleBack = goBackSmart;
 
     useEffect(() => {
         const path = parsePath();
         const params = matchPath('/posts/:id', path);
-        if (params?.id) dispatch(fetchPost(params.id));
+        if (params?.id) {
+            dispatch(fetchPost(params.id)).then((ok) => {
+                if (ok === false) goBackSmart(); // если 404 — сразу назад (лента/профиль/фолбэк)
+            });
+        }
         const sc = document.querySelector('[data-scroller]');
         if (sc && typeof sc.scrollTo === 'function')
             sc.scrollTo({ top: 0, left: 0 });
@@ -124,6 +159,31 @@ export default function PostDetails() {
             }
         })();
     }, [post?.id]);
+
+    const openReply = (cid) => {
+        setReplyOpenFor(cid);
+        setReplyText('');
+    };
+
+    const submitReply = async (parentId) => {
+        const text = replyText.trim();
+        if (!text || !post?.id || sending) return;
+        setSending(true);
+        try {
+            const { data } = await api.post(`/posts/${post.id}/comments`, {
+                content: text,
+                parent_id: parentId,
+            });
+            // достаточно просто допушить в плоский список — дерево построится на лету
+            setComments((prev) => [...prev, data]);
+            setReplyText('');
+            setReplyOpenFor(null);
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setSending(false);
+        }
+    };
 
     const toggleCommentReaction = async (
         commentId,
@@ -248,6 +308,16 @@ export default function PostDetails() {
     if (error) return <div className="container auth-error">{error}</div>;
     if (!post) return null;
 
+    const meId = Number(auth?.user?.id ?? 0);
+    const authorId = Number(post?.author_id ?? post?.author?.id ?? 0);
+    const role = String(auth?.user?.role || '').toLowerCase();
+    const isAdmin = role === 'admin';
+    const isAuthor = meId > 0 && authorId > 0 && meId === authorId;
+    const canEditContent = isAuthor; // контент редактирует только автор
+    const canEditCategories = isAuthor || isAdmin; // категории — автор и админ
+    const canChangeStatus = isAdmin; // актив/неактив — только админ
+    const canDelete = isAuthor || isAdmin;
+
     const created = formatDate(
         post.created_at ||
             post.publish_date ||
@@ -355,7 +425,15 @@ export default function PostDetails() {
             />
 
             {/* Действия */}
-            <div className="post-actions">
+            <div
+                className="post-actions"
+                style={{
+                    display: 'flex',
+                    gap: 8,
+                    flexWrap: 'wrap',
+                    marginTop: 8,
+                }}
+            >
                 <button
                     className={`mini-btn ${post.liked ? 'is-on' : ''}`}
                     onClick={() => dispatch(toggleLike(post.id))}
@@ -378,12 +456,59 @@ export default function PostDetails() {
                 >
                     ☆ {favCount}
                 </button>
-                <button
-                    className="mini-btn"
-                    onClick={() => navigate(`/posts/${post.id}/edit`)}
-                >
-                    ✎ Edit
-                </button>
+                {(canEditContent || canEditCategories) && (
+                    <button
+                        className="mini-btn"
+                        onClick={() => {
+                            sessionStorage.setItem('cameFromPost', '1');
+                            navigate(`/posts/${post.id}/edit`);
+                        }}
+                    >
+                        ✎ Edit
+                    </button>
+                )}
+
+                {canChangeStatus && (
+                    <button
+                        className="mini-btn"
+                        onClick={async () => {
+                            const next =
+                                post.status === 'active'
+                                    ? 'inactive'
+                                    : 'active';
+                            await dispatch(
+                                updatePost({ id: post.id, status: next })
+                            );
+                        }}
+                        title={
+                            post.status === 'active' ? 'Deactivate' : 'Activate'
+                        }
+                    >
+                        {post.status === 'active'
+                            ? '⏸ Make inactive'
+                            : '▶ Make active'}
+                    </button>
+                )}
+
+                {canDelete && (
+                    <button
+                        className="mini-btn"
+                        onClick={async () => {
+                            if (deleting) return;
+                            setDeleting(true);
+                            try {
+                                await dispatch(deletePost(post.id));
+                                goBackSmart(); // назад на ленту/профиль (или fallback)
+                            } finally {
+                                setDeleting(false);
+                            }
+                        }}
+                        style={{ color: '#9a1c1c' }}
+                        disabled={deleting}
+                    >
+                        {deleting ? '…Deleting' : '🗑 Delete'}
+                    </button>
+                )}
             </div>
 
             {/* Комментарии */}
@@ -398,118 +523,16 @@ export default function PostDetails() {
                     <div className="auth-muted">No comments yet</div>
                 )}
                 {!cLoading && comments.length > 0 && (
-                    <div
-                        className="comments-list"
-                        style={{ display: 'grid', gap: 10 }}
-                    >
-                        {comments.map((c) => {
-                            const cAva =
-                                assetUrl(c.author_avatar) ||
-                                c.author_avatar ||
-                                '/placeholder-avatar.png';
-                            const cName =
-                                c.author_login || c.author_name || 'user';
-                            const cDate = formatDate(
-                                c.created_at || c.createdAt
-                            );
-                            return (
-                                <div
-                                    key={c.id}
-                                    className="comment-row"
-                                    style={{
-                                        display: 'grid',
-                                        gridTemplateColumns: '40px 1fr',
-                                        gap: 10,
-                                    }}
-                                >
-                                    <img
-                                        src={cAva}
-                                        onError={(e) => {
-                                            e.currentTarget.src =
-                                                '/placeholder-avatar.png';
-                                        }}
-                                        alt=""
-                                        style={{
-                                            width: 40,
-                                            height: 40,
-                                            borderRadius: '50%',
-                                            objectFit: 'cover',
-                                            border: '1px solid var(--line)',
-                                        }}
-                                    />
-                                    <div>
-                                        <div
-                                            className="auth-muted"
-                                            style={{
-                                                fontSize: 13,
-                                                marginBottom: 4,
-                                            }}
-                                        >
-                                            <b>{cName}</b> · {cDate}
-                                        </div>
-                                        <div style={{ whiteSpace: 'pre-wrap' }}>
-                                            {c.content || c.text || ''}
-                                        </div>
-                                        <div
-                                            className="comment-actions"
-                                            style={{
-                                                display: 'flex',
-                                                gap: 8,
-                                                marginTop: 6,
-                                            }}
-                                        >
-                                            <button
-                                                className={`mini-btn ${
-                                                    c.my_reaction === 'like' ||
-                                                    c.liked
-                                                        ? 'is-on'
-                                                        : ''
-                                                }`}
-                                                onClick={() =>
-                                                    toggleCommentReaction(
-                                                        c.id,
-                                                        'like'
-                                                    )
-                                                }
-                                                aria-pressed={
-                                                    c.my_reaction === 'like' ||
-                                                    c.liked
-                                                }
-                                                title="Like"
-                                            >
-                                                ♥{' '}
-                                                {Number(c.likes_up_count || 0)}
-                                            </button>
-                                            <button
-                                                className={`mini-btn ${
-                                                    c.my_reaction ===
-                                                        'dislike' || c.disliked
-                                                        ? 'is-on'
-                                                        : ''
-                                                }`}
-                                                onClick={() =>
-                                                    toggleCommentReaction(
-                                                        c.id,
-                                                        'dislike'
-                                                    )
-                                                }
-                                                aria-pressed={
-                                                    c.my_reaction ===
-                                                        'dislike' || c.disliked
-                                                }
-                                                title="Dislike"
-                                            >
-                                                👎{' '}
-                                                {Number(
-                                                    c.likes_down_count || 0
-                                                )}
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
+                    <CommentsTree
+                        nodes={buildTree(comments)}
+                        onLike={(id) => toggleCommentReaction(id, 'like')}
+                        onDislike={(id) => toggleCommentReaction(id, 'dislike')}
+                        replyOpenFor={replyOpenFor}
+                        setReplyOpenFor={setReplyOpenFor}
+                        replyText={replyText}
+                        setReplyText={setReplyText}
+                        submitReply={submitReply}
+                    />
                 )}
                 {/* Форма добавления комментария */}
                 <div style={{ marginTop: 14 }}>
@@ -555,6 +578,178 @@ export default function PostDetails() {
             </div>
 
             <div id="comments-anchor" />
+        </div>
+    );
+}
+function CommentNode({
+    node,
+    level = 0,
+    onLike,
+    onDislike,
+    replyOpenFor,
+    setReplyOpenFor,
+    replyText,
+    setReplyText,
+    submitReply,
+}) {
+    const indent = Math.min(level, 6) * 16; // макс 6 уровней визуально
+    const cAva =
+        assetUrl(node.author_avatar) ||
+        node.author_avatar ||
+        '/placeholder-avatar.png';
+    const cName = node.author_login || node.author_name || 'user';
+    const cDate = formatDate(node.created_at || node.createdAt);
+
+    return (
+        <div style={{ marginLeft: indent, marginBottom: 10 }}>
+            <div
+                className="comment-row"
+                style={{
+                    display: 'grid',
+                    gridTemplateColumns: '40px 1fr',
+                    gap: 10,
+                }}
+            >
+                <img
+                    src={cAva}
+                    onError={(e) => {
+                        e.currentTarget.src = '/placeholder-avatar.png';
+                    }}
+                    alt=""
+                    style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: '50%',
+                        objectFit: 'cover',
+                        border: '1px solid var(--line)',
+                    }}
+                />
+                <div>
+                    <div
+                        className="auth-muted"
+                        style={{ fontSize: 13, marginBottom: 4 }}
+                    >
+                        <b>{cName}</b> · {cDate}
+                    </div>
+                    <div style={{ whiteSpace: 'pre-wrap' }}>
+                        {node.content || node.text || ''}
+                    </div>
+
+                    <div
+                        className="comment-actions"
+                        style={{ display: 'flex', gap: 8, marginTop: 6 }}
+                    >
+                        <button
+                            className={`mini-btn ${
+                                node.my_reaction === 'like' || node.liked
+                                    ? 'is-on'
+                                    : ''
+                            }`}
+                            onClick={() => onLike(node.id)}
+                            aria-pressed={
+                                node.my_reaction === 'like' || node.liked
+                            }
+                            title="Like"
+                        >
+                            ♥ {Number(node.likes_up_count || 0)}
+                        </button>
+
+                        <button
+                            className={`mini-btn ${
+                                node.my_reaction === 'dislike' || node.disliked
+                                    ? 'is-on'
+                                    : ''
+                            }`}
+                            onClick={() => onDislike(node.id)}
+                            aria-pressed={
+                                node.my_reaction === 'dislike' || node.disliked
+                            }
+                            title="Dislike"
+                        >
+                            👎 {Number(node.likes_down_count || 0)}
+                        </button>
+
+                        <button
+                            className="mini-btn"
+                            onClick={() =>
+                                setReplyOpenFor(
+                                    replyOpenFor === node.id ? null : node.id
+                                )
+                            }
+                            title="Reply"
+                        >
+                            ↩ Reply
+                        </button>
+                    </div>
+
+                    {replyOpenFor === node.id && (
+                        <div style={{ marginTop: 8 }}>
+                            <textarea
+                                placeholder={`Reply to @${cName}…`}
+                                value={replyText}
+                                onChange={(e) => setReplyText(e.target.value)}
+                                rows={3}
+                                style={{ width: '100%', resize: 'vertical' }}
+                            />
+                            <div
+                                style={{
+                                    display: 'flex',
+                                    gap: 8,
+                                    justifyContent: 'flex-end',
+                                    marginTop: 6,
+                                }}
+                            >
+                                <button
+                                    className="mini-btn"
+                                    onClick={() => submitReply(node.id)}
+                                    disabled={!replyText.trim()}
+                                >
+                                    Send reply
+                                </button>
+                                <button
+                                    className="mini-btn"
+                                    onClick={() => {
+                                        setReplyText('');
+                                        setReplyOpenFor(null);
+                                    }}
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* children */}
+            {node.replies && node.replies.length > 0 && (
+                <div style={{ marginTop: 6 }}>
+                    {node.replies.map((child) => (
+                        <CommentNode
+                            key={child.id}
+                            node={child}
+                            level={level + 1}
+                            onLike={onLike}
+                            onDislike={onDislike}
+                            replyOpenFor={replyOpenFor}
+                            setReplyOpenFor={setReplyOpenFor}
+                            replyText={replyText}
+                            setReplyText={setReplyText}
+                            submitReply={submitReply}
+                        />
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
+function CommentsTree(props) {
+    return (
+        <div className="comments-list" style={{ display: 'grid', gap: 10 }}>
+            {props.nodes.map((n) => (
+                <CommentNode key={n.id} node={n} level={0} {...props} />
+            ))}
         </div>
     );
 }

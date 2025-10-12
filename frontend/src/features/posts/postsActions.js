@@ -120,15 +120,23 @@ export const fetchPost = (id) => async (dispatch) => {
     const postId = Number(id);
     if (!Number.isFinite(postId)) {
         // мягко завершаем без запроса — роутер сам покажет “Not found”/скелетон
-        return;
+        return false;
     }
     dispatch(setLoading(true));
     try {
         const { data } = await api.get(`/posts/${postId}`);
         dispatch(setOne(data));
+        return true;
     } catch (e) {
+        const status = e?.response?.status;
+        if (status === 404) {
+            // пост удалён/не найден — просто чистим current и молча выходим
+            dispatch(setOne(null));
+            dispatch(setError(null));
+            return false;
+        }
         dispatch(setError(e?.response?.data?.error || 'Failed to load post'));
-        throw e;
+        return false; // не бросаем — чтобы не было Uncaught
     } finally {
         dispatch(setLoading(false));
     }
@@ -307,4 +315,41 @@ export const createPost =
         } catch (e) {
             throw e?.response?.data?.error || e;
         }
+    };
+// frontend/src/features/posts/postsActions.js
+// ...остальное без изменений
+export const deletePost = (postId) => async (dispatch, getState) => {
+    await api.delete(`/posts/${postId}`);
+    // мягко вычистим current и уберём из ленты если он там есть
+    const { posts } = getState();
+    const nextItems = (posts.items || []).filter((p) => p.id !== postId);
+    dispatch(setList(nextItems));
+    dispatch(setOne(null));
+    return true;
+};
+
+export const updatePost =
+    ({ id, title, contentBlocks, categories, status }) =>
+    async (dispatch, getState) => {
+        const body = {};
+        if (title !== undefined) body.title = title;
+        if (contentBlocks !== undefined) body.content = contentBlocks;
+        if (Array.isArray(categories)) {
+            body.categories = categories.map((c) => +c).filter(Boolean);
+        }
+        if (status !== undefined) body.status = status; // 'active' | 'inactive' (бэк уже валидирует)
+
+        const { data } = await api.patch(`/posts/${id}`, body);
+
+        // Обновим current и ленту
+        dispatch(setOne(data));
+        const { posts } = getState();
+        const items = posts.items || [];
+        const idx = items.findIndex((p) => p.id === id);
+        if (idx !== -1) {
+            const copy = items.slice();
+            copy[idx] = { ...copy[idx], ...data };
+            dispatch(setList(copy));
+        }
+        return data;
     };

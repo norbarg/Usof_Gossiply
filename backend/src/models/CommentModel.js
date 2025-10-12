@@ -16,10 +16,17 @@ export class CommentModel extends BaseModel {
     constructor() {
         super('comments');
     }
-    async create({ post_id, author_id, content, status = 'active' }) {
+    async create({
+        post_id,
+        author_id,
+        content,
+        parent_id = null,
+        status = 'active',
+    }) {
         const res = await this.query(
-            `INSERT INTO comments (post_id, author_id, content, status) VALUES (:post_id, :author_id, :content, :status)`,
-            { post_id, author_id, content, status }
+            `INSERT INTO comments (post_id, author_id, content, parent_id, status)
+             VALUES (:post_id, :author_id, :content, :parent_id, :status)`,
+            { post_id, author_id, content, parent_id, status }
         );
         return this.findById(res.insertId);
     }
@@ -33,6 +40,7 @@ export class CommentModel extends BaseModel {
         const rows = await this.query(
             `SELECT
          c.id, c.post_id, c.author_id, c.content, c.status,
+         c.parent_id,
          c.publish_date AS created_at,
          /* раздельные счётчики реакций */
          COALESCE((SELECT COUNT(*) FROM likes l
@@ -70,6 +78,7 @@ export class CommentModel extends BaseModel {
         const rows = await this.query(
             `SELECT
          c.id, c.post_id, c.author_id, c.content, c.status,
+         c.parent_id,
          c.publish_date AS created_at,
          COALESCE((SELECT COUNT(*) FROM likes l
                   WHERE l.comment_id = c.id AND l.type='like'), 0)    AS likes_up_count,
@@ -84,7 +93,7 @@ export class CommentModel extends BaseModel {
        FROM comments c
        JOIN users u ON u.id = c.author_id
        WHERE ${where}
-       ORDER BY created_at ASC`,
+       ORDER BY (c.parent_id IS NOT NULL), c.publish_date ASC`,
             { post_id, viewer_id: +viewer_id }
         );
 
@@ -123,6 +132,7 @@ export class CommentModel extends BaseModel {
         const rows = await this.query(
             `SELECT
          c.id, c.post_id, c.author_id, c.content, c.status,
+         c.parent_id,
          c.publish_date AS created_at,
          COALESCE((SELECT COUNT(*) FROM likes l
                   WHERE l.comment_id = c.id AND l.type='like'), 0)    AS likes_up_count,
@@ -138,7 +148,7 @@ export class CommentModel extends BaseModel {
        JOIN users u ON u.id = c.author_id
        WHERE c.post_id = :post_id
          AND (c.status = 'active' OR (c.status = 'inactive' AND c.author_id = :viewer_id))
-       ORDER BY created_at ASC`,
+       ORDER BY (c.parent_id IS NOT NULL), c.publish_date ASC`,
             { post_id, viewer_id }
         );
 

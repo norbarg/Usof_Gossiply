@@ -141,7 +141,13 @@ export const PostController = {
         const data = {};
 
         if (isAdmin && 'status' in req.body) {
-            data.status = req.body.status;
+            const s = String(req.body.status || '').toLowerCase();
+            if (!['active', 'inactive'].includes(s)) {
+                return res
+                    .status(400)
+                    .json({ error: 'status must be active|inactive' });
+            }
+            data.status = s;
         }
 
         if (isAuthor) {
@@ -284,8 +290,16 @@ export const PostController = {
         if (!req.file)
             return res.status(400).json({ error: 'No file uploaded' });
 
-        const url = `/${req.file.path}`.replace(/\\/g, '/');
-        return res.json({ url });
+        // Собираем корректный путь из req.file
+        let p = (req.file.path || req.file.filename || '')
+            .toString()
+            .replace(/\\/g, '/');
+        // гарантируем ведущий слэш
+        if (!p.startsWith('/')) p = '/' + p;
+        // уберём возможный /api и лишние вариации 'uploads'
+        p = p.replace(/^\/api(\/|$)/i, '/');
+        p = p.replace(/^\/?uploads\/+/i, '/uploads/');
+        return res.json({ url: p });
     },
     async listAllAdmin(req, res) {
         const {

@@ -61,19 +61,29 @@ export function postsReducer(state = initial, action) {
             return { ...state, meta: { ...state.meta, ...action.payload } };
         case POST_SET_ONE: {
             const upd = action.payload;
+            // если хотим просто очистить current (после удаления)
+            if (upd == null) {
+                return { ...state, current: null };
+            }
+
+            const id = upd.id;
             let found = false;
             const nextItems = (state.items || []).map((it) => {
-                if (it.id === upd.id) {
+                // защитимся от возможных "дыр" в массиве
+                if (it && id != null && it.id === id) {
                     found = true;
                     return { ...it, ...upd };
                 }
                 return it;
             });
-            const items = found ? nextItems : [upd, ...state.items];
+            // Если нашли — обновили; если id нет — не пихаем в список; если не нашли, добавим в начало
+            const items =
+                found || id == null ? nextItems : [upd, ...(state.items || [])];
+
             return {
                 ...state,
                 items,
-                current: { ...(state.current || {}), ...upd },
+                current: state.current ? { ...state.current, ...upd } : upd,
             };
         }
         case POSTS_SET_FAV_IDS: {

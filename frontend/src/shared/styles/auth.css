@@ -390,7 +390,7 @@ body {
 }
 /* делаем главным скроллером именно <main data-scroller> */
 .page[data-scroller] {
-    height: 100vh; /* занимает всю высоту окна */
+    height: 98vh; /* занимает всю высоту окна */
     overflow-y: auto; /* скроллимся внутри main */
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;

@@ -38,21 +38,15 @@ app.use((req, res, next) => {
     next();
 });
 
-// обычная статика
-app.use(
-    '/uploads',
-    express.static(uploadsDir, {
-        index: false,
-        setHeaders(res) {
-            res.setHeader(
-                'Cache-Control',
-                'public, max-age=31536000, immutable'
-            );
-            res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-        },
-    })
-);
-app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+const serveUploads = express.static(uploadsDir, {
+    index: false,
+    setHeaders(res) {
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    },
+});
+app.use('/uploads', serveUploads);
+app.use('/api/uploads', serveUploads); // ← ВАЖНО для dev-прокси (/api)
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 

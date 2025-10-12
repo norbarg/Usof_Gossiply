@@ -92,13 +92,36 @@ export const CommentController = {
             return res
                 .status(403)
                 .json({ error: 'Cannot comment inactive post' });
-        const { content } = req.body;
+        const { content, parent_id } = req.body;
         if (!content)
             return res.status(400).json({ error: 'content required' });
+        // if it's a reply, validate parent
+        let parent = null;
+        if (parent_id != null) {
+            const pid = +parent_id;
+            if (!Number.isFinite(pid))
+                return res
+                    .status(400)
+                    .json({ error: 'parent_id must be a number' });
+            parent = await Comments.findById(pid);
+            if (!parent)
+                return res
+                    .status(404)
+                    .json({ error: 'Parent comment not found' });
+            if (parent.post_id !== post_id)
+                return res.status(400).json({
+                    error: 'Parent comment belongs to a different post',
+                });
+            if (parent.status !== 'active')
+                return res
+                    .status(403)
+                    .json({ error: 'Cannot reply to inactive comment' });
+        }
         const comment = await Comments.create({
             post_id,
             author_id: req.user.id,
             content,
+            parent_id: parent ? parent.id : null,
         });
         const full = await Comments.findByIdWithAuthor(comment.id);
         res.status(201).json(full);
