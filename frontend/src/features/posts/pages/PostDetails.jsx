@@ -126,6 +126,10 @@ export default function PostDetails() {
     const [sending, setSending] = useState(false);
     const [deleting, setDeleting] = useState(false);
 
+    const [editingId, setEditingId] = useState(null);
+    const [editText, setEditText] = useState('');
+    const [busyById, setBusyById] = useState({}); // { [commentId]: true }
+
     function goBackSmart() {
         if (window.history.length > 1) return history.back();
         const fallback = sessionStorage.getItem('back:fallback') || '/posts';
@@ -182,6 +186,114 @@ export default function PostDetails() {
             console.error(e);
         } finally {
             setSending(false);
+        }
+    };
+
+    // ====== права для комментариев ======
+    const meId = Number(auth?.user?.id ?? 0);
+    const role = String(auth?.user?.role || '').toLowerCase();
+    const isAdmin = role === 'admin';
+    const canEditComment = (c) => meId > 0 && Number(c.author_id) === meId;
+    const canToggleStatus = (c) => canEditComment(c) || isAdmin;
+    const canDeleteComment = (c) => canEditComment(c) || isAdmin;
+
+    // ====== утилиты обновления списка ======
+    const patchCommentLocal = (id, patch) =>
+        setComments((prev) =>
+            prev.map((c) => (c.id === id ? { ...c, ...patch } : c))
+        );
+    const removeSubtreeLocal = (rootId) =>
+        setComments((prev) => {
+            // parent_id -> [childId]
+            const map = new Map();
+            prev.forEach((c) => {
+                if (c.parent_id != null) {
+                    if (!map.has(c.parent_id)) map.set(c.parent_id, []);
+                    map.get(c.parent_id).push(c.id);
+                }
+            });
+            const toDel = new Set([rootId]);
+            const stack = [rootId];
+            while (stack.length) {
+                const id = stack.pop();
+                const kids = map.get(id) || [];
+                for (const k of kids)
+                    if (!toDel.has(k)) {
+                        toDel.add(k);
+                        stack.push(k);
+                    }
+            }
+            return prev.filter((c) => !toDel.has(c.id));
+        });
+    const setBusy = (id, v) => setBusyById((p) => ({ ...p, [id]: v }));
+
+    // ====== EDIT ======
+    const startEdit = (c) => {
+        if (!canEditComment(c)) return;
+        setEditingId(c.id);
+        setEditText(c.content || c.text || '');
+    };
+    const cancelEdit = () => {
+        setEditingId(null);
+        setEditText('');
+    };
+    const saveEdit = async (id) => {
+        const text = (editText || '').trim();
+        if (!text) return;
+        setBusy(id, true);
+        try {
+            const { data } = await api.patch(`/comments/${id}`, {
+                content: text,
+            });
+            patchCommentLocal(id, { content: data?.content ?? text });
+            setEditingId(null);
+            setEditText('');
+        } catch (e) {
+            console.error(e);
+            alert('Failed to save comment');
+        } finally {
+            setBusy(id, false);
+        }
+    };
+
+    // ====== STATUS TOGGLE (active/inactive) ======
+    const toggleCommentStatus = async (c) => {
+        if (!canToggleStatus(c)) return;
+        const id = c.id;
+        const next =
+            String(c.status || 'active') === 'active' ? 'inactive' : 'active';
+        setBusy(id, true);
+        const prev = { ...c };
+        // оптимистично
+        patchCommentLocal(id, { status: next });
+        try {
+            await api.patch(`/comments/${id}`, { status: next });
+        } catch (e) {
+            // откат
+            patchCommentLocal(id, { status: prev.status });
+            console.error(e);
+            alert('Failed to change status');
+        } finally {
+            setBusy(id, false);
+        }
+    };
+
+    // ====== DELETE ======
+    const deleteCommentById = async (c) => {
+        if (!canDeleteComment(c)) return;
+        const id = c.id;
+        if (!confirm('Delete this comment?')) return;
+        setBusy(id, true);
+        try {
+            await api.delete(`/comments/${id}`);
+            // удаляем один узел (дети при следующей загрузке придут как есть с бэка;
+            // в текущем UI мы вычистим только сам узел)
+            removeSubtreeLocal(id);
+        } catch (e) {
+            console.error(e);
+            alert('Failed to delete comment');
+        } finally {
+            setBusy(id, false);
         }
     };
 
@@ -272,10 +384,11 @@ export default function PostDetails() {
             const { data } = await api.post(`/posts/${post.id}/comments`, {
                 content: text,
             });
+            // Берём ответ сервера как источник истины и добавляем только безопасные дефолты:
             const enriched = {
-                id: data?.id,
-                post_id: post.id,
-                content: data?.content ?? text,
+                ...data,
+                post_id: data?.post_id ?? post.id,
+                author_id: Number(data?.author_id ?? auth?.user?.id), // ← ВАЖНО
                 created_at: data?.created_at ?? new Date().toISOString(),
                 author_login:
                     data?.author_login ??
@@ -289,10 +402,9 @@ export default function PostDetails() {
                 my_reaction: null,
                 liked: false,
                 disliked: false,
-                likes_up_count: 0,
-                likes_down_count: 0,
+                likes_up_count: Number(data?.likes_up_count ?? 0),
+                likes_down_count: Number(data?.likes_down_count ?? 0),
             };
-            // добавим в конец списка (или в начало — как тебе удобнее)
             setComments((prev) => [...prev, enriched]);
         } catch (e) {
             // можно показать тост/ошибку
@@ -308,10 +420,7 @@ export default function PostDetails() {
     if (error) return <div className="container auth-error">{error}</div>;
     if (!post) return null;
 
-    const meId = Number(auth?.user?.id ?? 0);
     const authorId = Number(post?.author_id ?? post?.author?.id ?? 0);
-    const role = String(auth?.user?.role || '').toLowerCase();
-    const isAdmin = role === 'admin';
     const isAuthor = meId > 0 && authorId > 0 && meId === authorId;
     const canEditContent = isAuthor; // контент редактирует только автор
     const canEditCategories = isAuthor || isAdmin; // категории — автор и админ
@@ -532,6 +641,21 @@ export default function PostDetails() {
                         replyText={replyText}
                         setReplyText={setReplyText}
                         submitReply={submitReply}
+                        // new props for moderation / editing
+                        meId={meId}
+                        isAdmin={isAdmin}
+                        canEditComment={canEditComment}
+                        canToggleStatus={canToggleStatus}
+                        canDeleteComment={canDeleteComment}
+                        startEdit={startEdit}
+                        saveEdit={saveEdit}
+                        cancelEdit={cancelEdit}
+                        toggleCommentStatus={toggleCommentStatus}
+                        deleteCommentById={deleteCommentById}
+                        editingId={editingId}
+                        editText={editText}
+                        setEditText={setEditText}
+                        busyById={busyById}
                     />
                 )}
                 {/* Форма добавления комментария */}
@@ -591,6 +715,21 @@ function CommentNode({
     replyText,
     setReplyText,
     submitReply,
+    // new:
+    meId,
+    isAdmin,
+    canEditComment,
+    canToggleStatus,
+    canDeleteComment,
+    startEdit,
+    saveEdit,
+    cancelEdit,
+    toggleCommentStatus,
+    deleteCommentById,
+    editingId,
+    editText,
+    setEditText,
+    busyById = {},
 }) {
     const indent = Math.min(level, 6) * 16; // макс 6 уровней визуально
     const cAva =
@@ -599,6 +738,11 @@ function CommentNode({
         '/placeholder-avatar.png';
     const cName = node.author_login || node.author_name || 'user';
     const cDate = formatDate(node.created_at || node.createdAt);
+    const isMine = Number(node.author_id) === Number(meId);
+    const editing = editingId === node.id;
+    const busy = !!busyById[node.id];
+    const status = String(node.status || 'active');
+    const isActive = status === 'active';
 
     return (
         <div style={{ marginLeft: indent, marginBottom: 10 }}>
@@ -630,10 +774,71 @@ function CommentNode({
                         style={{ fontSize: 13, marginBottom: 4 }}
                     >
                         <b>{cName}</b> · {cDate}
+                        {status && (
+                            <span
+                                title={`Status: ${
+                                    isActive ? 'active' : 'inactive'
+                                }`}
+                                style={{
+                                    display: 'inline-block',
+                                    marginLeft: 8,
+                                    padding: '0 6px',
+                                    borderRadius: 999,
+                                    fontSize: 11,
+                                    lineHeight: '18px',
+                                    border: '1px solid var(--line)',
+                                    background: isActive
+                                        ? '#e8fff3'
+                                        : '#fff5f5',
+                                    color: isActive ? '#0a7f43' : '#9a1c1c',
+                                }}
+                            >
+                                {isActive ? 'Active' : 'Inactive'}
+                            </span>
+                        )}
                     </div>
-                    <div style={{ whiteSpace: 'pre-wrap' }}>
-                        {node.content || node.text || ''}
-                    </div>
+                    {!editing ? (
+                        <div
+                            style={{
+                                whiteSpace: 'pre-wrap',
+                                opacity: isActive ? 1 : 0.75,
+                            }}
+                        >
+                            {node.content || node.text || ''}
+                        </div>
+                    ) : (
+                        <div style={{ display: 'grid', gap: 6 }}>
+                            <textarea
+                                value={editText}
+                                onChange={(e) => setEditText(e.target.value)}
+                                rows={3}
+                                style={{ width: '100%', resize: 'vertical' }}
+                                disabled={busy}
+                            />
+                            <div
+                                style={{
+                                    display: 'flex',
+                                    gap: 8,
+                                    justifyContent: 'flex-end',
+                                }}
+                            >
+                                <button
+                                    className="mini-btn"
+                                    onClick={() => saveEdit(node.id)}
+                                    disabled={busy || !editText.trim()}
+                                >
+                                    {busy ? 'Saving…' : 'Save'}
+                                </button>
+                                <button
+                                    className="mini-btn"
+                                    onClick={cancelEdit}
+                                    disabled={busy}
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    )}
 
                     <div
                         className="comment-actions"
@@ -650,6 +855,7 @@ function CommentNode({
                                 node.my_reaction === 'like' || node.liked
                             }
                             title="Like"
+                            disabled={!isActive}
                         >
                             ♥ {Number(node.likes_up_count || 0)}
                         </button>
@@ -665,6 +871,7 @@ function CommentNode({
                                 node.my_reaction === 'dislike' || node.disliked
                             }
                             title="Dislike"
+                            disabled={!isActive}
                         >
                             👎 {Number(node.likes_down_count || 0)}
                         </button>
@@ -677,9 +884,46 @@ function CommentNode({
                                 )
                             }
                             title="Reply"
+                            disabled={!isActive}
                         >
                             ↩ Reply
                         </button>
+                        {/* Edit — только автор */}
+                        {canEditComment(node) && !editing && (
+                            <button
+                                className="mini-btn"
+                                onClick={() => startEdit(node)}
+                                disabled={busy}
+                                title="Edit"
+                            >
+                                ✎ Edit
+                            </button>
+                        )}
+                        {/* Status toggle — автор или админ */}
+                        {canToggleStatus(node) && (
+                            <button
+                                className="mini-btn"
+                                onClick={() => toggleCommentStatus(node)}
+                                disabled={busy}
+                                title={
+                                    isActive ? 'Make inactive' : 'Make active'
+                                }
+                            >
+                                {isActive ? '⏸ Make inactive' : '▶ Make active'}
+                            </button>
+                        )}
+                        {/* Delete — автор или админ */}
+                        {canDeleteComment(node) && (
+                            <button
+                                className="mini-btn"
+                                onClick={() => deleteCommentById(node)}
+                                style={{ color: '#9a1c1c' }}
+                                disabled={busy}
+                                title="Delete"
+                            >
+                                {busy ? '…Deleting' : '🗑 Delete'}
+                            </button>
+                        )}
                     </div>
 
                     {replyOpenFor === node.id && (
@@ -690,6 +934,7 @@ function CommentNode({
                                 onChange={(e) => setReplyText(e.target.value)}
                                 rows={3}
                                 style={{ width: '100%', resize: 'vertical' }}
+                                disabled={!isActive}
                             />
                             <div
                                 style={{
@@ -702,7 +947,7 @@ function CommentNode({
                                 <button
                                     className="mini-btn"
                                     onClick={() => submitReply(node.id)}
-                                    disabled={!replyText.trim()}
+                                    disabled={!replyText.trim() || !isActive}
                                 >
                                     Send reply
                                 </button>
@@ -736,6 +981,20 @@ function CommentNode({
                             replyText={replyText}
                             setReplyText={setReplyText}
                             submitReply={submitReply}
+                            meId={meId}
+                            isAdmin={isAdmin}
+                            canEditComment={canEditComment}
+                            canToggleStatus={canToggleStatus}
+                            canDeleteComment={canDeleteComment}
+                            startEdit={startEdit}
+                            saveEdit={saveEdit}
+                            cancelEdit={cancelEdit}
+                            toggleCommentStatus={toggleCommentStatus}
+                            deleteCommentById={deleteCommentById}
+                            editingId={editingId}
+                            editText={editText}
+                            setEditText={setEditText}
+                            busyById={busyById}
                         />
                     ))}
                 </div>

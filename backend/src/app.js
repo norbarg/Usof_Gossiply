@@ -49,6 +49,9 @@ app.use('/uploads', serveUploads);
 app.use('/api/uploads', serveUploads); // ← ВАЖНО для dev-прокси (/api)
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
+app.get('/default.png', (_req, res) => {
+    res.sendFile(path.join(__dirname, '../default.png'));
+});
 
 app.use('/api', apiRouter);
 

@@ -155,11 +155,14 @@ export const CommentController = {
         const updated = await Comments.updateById(id, data);
         res.json(updated);
     },
+
     async remove(req, res) {
         const id = +req.params.comment_id;
         const c = await Comments.findById(id);
         if (!c) return res.status(404).json({ error: 'Comment not found' });
-        if (req.user.id !== c.author_id) {
+        const isAuthor = req.user.id === c.author_id;
+        const isAdmin = req.user.role === 'admin';
+        if (!isAuthor && !isAdmin) {
             return res.status(403).json({ error: 'Forbidden' });
         }
         await Comments.deleteById(id);

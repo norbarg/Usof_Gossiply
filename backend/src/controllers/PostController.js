@@ -195,14 +195,35 @@ export const PostController = {
         res.json(rows[0]);
     },
     async listComments(req, res) {
-        const id = +req.params.post_id;
-        const include_inactive = req.user?.role === 'admin';
+        const post_id = +req.params.post_id;
+        const viewer_id = req.user?.id || 0;
+
+        // Админ видит все комментарии
+        if (req.user?.role === 'admin') {
+            const comments = await Comments.listByPost({
+                post_id,
+                include_inactive: true,
+                viewer_id,
+            });
+            return res.json(comments);
+        }
+
+        // Авторизованный пользователь: active ИЛИ (inactive И author_id = viewer_id)
+        if (viewer_id) {
+            const comments = await Comments.listByPostForViewer({
+                post_id,
+                viewer_id,
+            });
+            return res.json(comments);
+        }
+
+        // Гость: только active
         const comments = await Comments.listByPost({
-            post_id: id,
-            include_inactive,
-            viewer_id: req.user?.id || 0,
+            post_id,
+            include_inactive: false,
+            viewer_id: 0,
         });
-        res.json(comments);
+        return res.json(comments);
     },
     async listCommentsAdmin(req, res) {
         const id = +req.params.post_id;
