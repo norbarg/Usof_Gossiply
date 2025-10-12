@@ -13,10 +13,12 @@
     backdrop-filter: saturate(120%) blur(6px);
     transition: transform 0.22s ease, opacity 0.18s ease;
     will-change: transform;
+    height: var(--header-height);
 }
 
 .site-header.is-hidden {
-    transform: translateY(-110%);
+    /* transform: translateY(-110%); */
+    transform: translateY(calc(-1 * var(--header-height, 87px)));
     opacity: 0;
     pointer-events: none;
 }

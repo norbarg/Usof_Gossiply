@@ -22,6 +22,7 @@ export default function Header() {
 
     const [hidden, setHidden] = useState(false);
     const lastY = useRef(0);
+    const userScrolledRef = useRef(false);
 
     useEffect(() => {
         const scroller = document.querySelector('[data-scroller]') || window;
@@ -49,6 +50,11 @@ export default function Header() {
             if (y <= TOP_FREE_SHOW) {
                 // почти у верха — показываем
                 setHidden(false);
+                return;
+            }
+            // Пока не было явного пользовательского ввода,
+            // игнорируем программные смещения (восстановление скролла, лэйаут и т.п.)
+            if (!userScrolledRef.current) {
                 return;
             }
             if (dy > THRESHOLD) {
@@ -80,11 +86,31 @@ export default function Header() {
 
         // фоллбеки — помогают, если скроллит вложенный элемент
         const onWheel = (e) => {
+            userScrolledRef.current = true;
             if (e.deltaY < 0) setHidden(false); // вверх колёсиком — показать
             else if (getY() > TOP_FREE_SHOW) setHidden(true);
         };
+        const onTouchMove = () => {
+            userScrolledRef.current = true;
+            onScroll();
+        };
+        const onKey = (e) => {
+            // клавиши прокрутки
+            if (
+                e.key === 'ArrowUp' ||
+                e.key === 'ArrowDown' ||
+                e.key === 'PageUp' ||
+                e.key === 'PageDown' ||
+                e.key === 'Home' ||
+                e.key === 'End' ||
+                e.key === ' '
+            ) {
+                userScrolledRef.current = true;
+            }
+        };
         window.addEventListener('wheel', onWheel, { passive: true });
-        window.addEventListener('touchmove', onScroll, { passive: true });
+        window.addEventListener('touchmove', onTouchMove, { passive: true });
+        window.addEventListener('keydown', onKey);
 
         return () => {
             (scroller === window ? window : scroller).removeEventListener(
@@ -92,10 +118,61 @@ export default function Header() {
                 onScroll
             );
             window.removeEventListener('wheel', onWheel);
-            window.removeEventListener('touchmove', onScroll);
+            window.removeEventListener('touchmove', onTouchMove);
+            window.removeEventListener('keydown', onKey);
         };
     }, []);
+    // При маунте: показать хедер, обновить baseline скролла, проставить реальную высоту в CSS var
+    useEffect(() => {
+        try {
+            setHidden(false);
+            userScrolledRef.current = false;
+            const scroller =
+                document.querySelector('[data-scroller]') || window;
+            const getY = () =>
+                scroller === window
+                    ? window.pageYOffset ||
+                      document.documentElement.scrollTop ||
+                      document.body.scrollTop ||
+                      0
+                    : scroller.scrollTop;
+            lastY.current = getY();
 
+            // Замеряем фактическую высоту шапки → кладём в --header-height
+            const el = document.querySelector('.site-header');
+            if (el) {
+                const h = Math.round(
+                    el.getBoundingClientRect().height || el.offsetHeight || 0
+                );
+                if (h) {
+                    document.documentElement.style.setProperty(
+                        '--header-height',
+                        `${h}px`
+                    );
+                }
+            }
+        } catch {}
+    }, []);
+
+    // На смену роутов — всегда раскрывать и сбрасывать baseline, чтобы не «подпрыгивал»
+    useEffect(() => {
+        const off = onRouteChange(() => {
+            setHidden(false);
+            userScrolledRef.current = false;
+            // обновим базовую точку
+            const scroller =
+                document.querySelector('[data-scroller]') || window;
+            const y =
+                scroller === window
+                    ? window.pageYOffset ||
+                      document.documentElement.scrollTop ||
+                      document.body.scrollTop ||
+                      0
+                    : scroller.scrollTop;
+            lastY.current = y;
+        });
+        return off;
+    }, []);
     // sync из URL + подписка
     useEffect(() => {
         const syncFromUrl = () => {

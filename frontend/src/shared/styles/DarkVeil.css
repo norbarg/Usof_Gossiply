@@ -13,9 +13,3 @@
     pointer-events: none; /* клики проходят сквозь фон */
     overflow: hidden;
 }
-
-/* убедимся, что контент поверх */
-.site-header {
-    position: relative;
-    z-index: 10;
-}
