@@ -23,66 +23,74 @@ export const CommentController = {
         const likes = await Likes.listForComment(id);
         res.json(likes);
     },
+    // backend/src/controllers/CommentController.js
     async likeCreate(req, res) {
-        const id = +req.params.comment_id;
-        const { type = 'like' } = req.body;
+        const id = Number(req.params.comment_id);
+        const { type = 'like' } = req.body || {};
+
+        if (!Number.isFinite(id)) {
+            return res
+                .status(400)
+                .json({ error: 'comment_id must be a number' });
+        }
         if (!['like', 'dislike'].includes(type)) {
             return res.status(400).json({ error: 'type must be like|dislike' });
         }
+        if (!req.user || !req.user.id) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
         const c = await Comments.findById(id);
         if (!c) return res.status(404).json({ error: 'Comment not found' });
-
         if (c.status !== 'active') {
             return res
                 .status(403)
                 .json({ error: 'Cannot react to inactive comment' });
         }
 
-        const [rows] = await pool.query(
-            `SELECT id, type FROM likes
-       WHERE author_id = :aid AND comment_id = :cid AND post_id IS NULL
-       LIMIT 1`,
-            { aid: req.user.id, cid: id }
-        );
-        const existing = rows[0];
-
-        if (!existing) {
+        try {
+            // Атомарно: вставит или переключит тип, без предварительного SELECT
             await pool.query(
                 `INSERT INTO likes (author_id, comment_id, type)
-         VALUES (:aid, :cid, :type)`,
+       VALUES (:aid, :cid, :type)
+       ON DUPLICATE KEY UPDATE type = VALUES(type)`,
                 { aid: req.user.id, cid: id, type }
             );
-            await updateUserRating(c.author_id);
-            return res
-                .status(201)
-                .json({ message: 'Reaction created', comment_id: id, type });
+        } catch (e) {
+            console.error('likeCreate error:', e);
+            return res.status(500).json({ error: 'Failed to save reaction' });
         }
 
-        if (existing.type === type) {
+        // Пересчёт рейтинга — best-effort, не ломаем основной ответ
+        try {
             await updateUserRating(c.author_id);
-            return res
-                .status(200)
-                .json({ message: 'Reaction unchanged', comment_id: id, type });
+        } catch (e) {
+            console.warn('updateUserRating failed:', e);
         }
 
-        await pool.query(`UPDATE likes SET type = :type WHERE id = :id`, {
-            type,
-            id: existing.id,
-        });
-        await updateUserRating(c.author_id);
-        return res
-            .status(200)
-            .json({ message: 'Reaction switched', comment_id: id, type });
+        return res.status(200).json({ message: 'OK', comment_id: id, type });
     },
     async likeDelete(req, res) {
-        const id = +req.params.comment_id;
+        const id = Number(req.params.comment_id);
+        if (!Number.isFinite(id))
+            return res
+                .status(400)
+                .json({ error: 'comment_id must be a number' });
+        if (!req.user?.id)
+            return res.status(401).json({ error: 'Unauthorized' });
+
         await Likes.removeForComment({
             author_id: req.user.id,
             comment_id: id,
         });
-        const c = await Comments.findById(id);
-        if (c) await updateUserRating(c.author_id);
-        res.json({ message: 'Like removed' });
+
+        try {
+            const c = await Comments.findById(id);
+            if (c) await updateUserRating(c.author_id);
+        } catch (e) {
+            console.warn('updateUserRating after delete failed:', e);
+        }
+        return res.status(200).json({ message: 'OK' });
     },
     async createUnderPost(req, res) {
         const post_id = +req.params.post_id;

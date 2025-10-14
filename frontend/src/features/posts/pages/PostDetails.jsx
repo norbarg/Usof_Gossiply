@@ -1,5 +1,5 @@
 // frontend/src/features/posts/pages/PostDetails.jsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
     fetchPost,
@@ -13,40 +13,240 @@ import { matchPath, parsePath, navigate } from '../../../shared/router/helpers';
 import { formatDate } from '../../../shared/utils/format';
 import { assetUrl } from '../../../shared/utils/assetUrl';
 import api from '../../../shared/api/axios';
+// Pretty date: "November 15, 2025 at 12:28"
+function formatUSDate(value) {
+    if (!value) return '';
+    const d = new Date(value);
+    if (isNaN(d)) return String(value);
+    const date = new Intl.DateTimeFormat('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+    }).format(d);
+    const time = new Intl.DateTimeFormat('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+    }).format(d);
+    return `${date} at ${time}`;
+}
 
-function Blocks({ blocks }) {
+// === drag-scroll helper ===
+function useDragScroll(ref) {
+    const state = useRef({
+        down: false,
+        startX: 0,
+        scrollLeft: 0,
+        moved: false,
+    });
+    useEffect(() => {
+        const el = ref.current;
+        if (!el) return;
+        const onDown = (e) => {
+            if (e.pointerType === 'mouse' && e.button !== 0) return; // только ЛКМ
+            el.setPointerCapture?.(e.pointerId);
+            e.preventDefault();
+            state.current = {
+                down: true,
+                startX: e.clientX ?? (e.touches?.[0]?.clientX || 0),
+                scrollLeft: el.scrollLeft,
+                moved: false,
+            };
+            el.classList.add('dragging');
+        };
+        const onMove = (e) => {
+            if (!state.current.down) return;
+            const x = e.clientX ?? (e.touches?.[0]?.clientX || 0);
+            const dx = x - state.current.startX;
+            if (Math.abs(dx) > 3) state.current.moved = true;
+            el.scrollLeft = state.current.scrollLeft - dx;
+        };
+        const end = () => {
+            if (!state.current.down) return;
+            state.current.down = false;
+            // небольшая задержка, чтобы клики после драга не срабатывали
+            state.current.justDraggedAt = Date.now();
+            el.classList.remove('dragging');
+        };
+        const onWheel = (e) => {
+            e.preventDefault();
+        };
+
+        el.addEventListener('pointerdown', onDown, { passive: false });
+        window.addEventListener('pointermove', onMove, { passive: true });
+        window.addEventListener('pointerup', end, { passive: true });
+        el.addEventListener('wheel', onWheel, { passive: false });
+        return () => {
+            el.removeEventListener('pointerdown', onDown);
+            window.removeEventListener('pointermove', onMove);
+            window.removeEventListener('pointerup', end);
+            el.removeEventListener('wheel', onWheel);
+        };
+    }, [ref]);
+
+    const suppressClick = () => {
+        const s = state.current;
+        if (s.moved) return true;
+        if (s.justDraggedAt && Date.now() - s.justDraggedAt < 120) return true;
+        return false;
+    };
+    return { suppressClickRef: { current: suppressClick } };
+}
+
+// === lightbox ===
+function Lightbox({ items, index, onClose, setIndex }) {
+    useEffect(() => {
+        const onKey = (e) => {
+            if (e.key === 'Escape') onClose?.();
+            if (e.key === 'ArrowLeft') setIndex?.((i) => Math.max(0, i - 1));
+            if (e.key === 'ArrowRight')
+                setIndex?.((i) => Math.min(items.length - 1, i + 1));
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [items?.length, onClose, setIndex]);
+
+    if (!items || index == null) return null;
+    const it = items[index] || {};
     return (
-        <div className="post-content">
-            {blocks.map((b, i) => {
-                const t = String(b?.type || '').toLowerCase();
-                if (t === 'p') return <p key={i}>{b.text || b.value || ''}</p>;
-                if (t === 'h2') return <h2 key={i}>{b.text || ''}</h2>;
-                if (t === 'h3') return <h3 key={i}>{b.text || ''}</h3>;
-                if (t === 'ul')
-                    return (
-                        <ul key={i}>
-                            {(b.items || []).map((li, k) => (
-                                <li key={k}>{li}</li>
-                            ))}
-                        </ul>
-                    );
-                if (t === 'img') {
-                    const src =
-                        assetUrl(b.url || b.src || b.path) ||
-                        b.url ||
-                        b.src ||
-                        b.path;
-                    if (!src) return null;
-                    return (
-                        <figure key={i} className="post-img">
-                            <img src={src} alt={b.alt || ''} />
-                            {b.caption && <figcaption>{b.caption}</figcaption>}
-                        </figure>
-                    );
-                }
-                return null;
-            })}
+        <div className="lb-backdrop" onClick={onClose}>
+            <div className="lb-inner" onClick={(e) => e.stopPropagation()}>
+                <button
+                    className="lb-close"
+                    onClick={onClose}
+                    aria-label="Close"
+                >
+                    ×
+                </button>
+                {items.length > 1 && (
+                    <>
+                        <button
+                            className="lb-nav left"
+                            onClick={() => setIndex((i) => Math.max(0, i - 1))}
+                        >
+                            ‹
+                        </button>
+                        <button
+                            className="lb-nav right"
+                            onClick={() =>
+                                setIndex((i) =>
+                                    Math.min(items.length - 1, i + 1)
+                                )
+                            }
+                        >
+                            ›
+                        </button>
+                    </>
+                )}
+                <img src={it.src} alt={it.alt || ''} />
+                {it.caption && <div className="lb-caption">{it.caption}</div>}
+            </div>
         </div>
+    );
+}
+
+// === horizontal media strip (group of imgs) ===
+function MediaStrip({ items, onOpen }) {
+    const rowRef = useRef(null);
+    const { suppressClickRef } = useDragScroll(rowRef);
+
+    return (
+        <div className="media-strip">
+            <div className="media-row" ref={rowRef}>
+                {items.map((it, idx) => (
+                    <figure
+                        key={idx}
+                        className="media-card"
+                        onClick={() => {
+                            if (suppressClickRef.current()) return;
+                            onOpen(idx);
+                        }}
+                    >
+                        <img src={it.src} alt={it.alt || ''} />
+                        {it.caption && <figcaption>{it.caption}</figcaption>}
+                    </figure>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+// === Blocks with grouping consecutive images into strips ===
+function Blocks({ blocks }) {
+    const [lb, setLb] = useState({ items: null, index: null });
+
+    const openLightbox = (items, startIdx) => {
+        setLb({ items, index: startIdx });
+    };
+    const setIndex = (updater) => {
+        setLb((prev) => ({
+            ...prev,
+            index:
+                typeof updater === 'function' ? updater(prev.index) : updater,
+        }));
+    };
+
+    // Разбиваем: последовательности IMG -> MediaStrip, остальное рендерим как есть
+    const out = [];
+    let buffer = []; // собранные IMG
+    const flush = () => {
+        if (buffer.length) {
+            out.push(
+                <MediaStrip
+                    key={`strip-${out.length}`}
+                    items={buffer}
+                    onOpen={(idx) => openLightbox(buffer, idx)}
+                />
+            );
+            buffer = [];
+        }
+    };
+
+    (blocks || []).forEach((b, i) => {
+        const t = String(b?.type || '').toLowerCase();
+        if (t === 'img') {
+            const src =
+                assetUrl(b.url || b.src || b.path) || b.url || b.src || b.path;
+            if (src) {
+                buffer.push({
+                    src,
+                    alt: b.alt || '',
+                    caption: b.caption || '',
+                });
+            }
+        } else {
+            flush();
+            if (t === 'p')
+                out.push(<p key={`p-${i}`}>{b.text || b.value || ''}</p>);
+            else if (t === 'h2')
+                out.push(<h2 key={`h2-${i}`}>{b.text || ''}</h2>);
+            else if (t === 'h3')
+                out.push(<h3 key={`h3-${i}`}>{b.text || ''}</h3>);
+            else if (t === 'ul') {
+                out.push(
+                    <ul key={`ul-${i}`}>
+                        {(b.items || []).map((li, k) => (
+                            <li key={k}>{li}</li>
+                        ))}
+                    </ul>
+                );
+            }
+        }
+    });
+    flush();
+
+    return (
+        <>
+            <div className="post-content">{out}</div>
+            {lb.items && (
+                <Lightbox
+                    items={lb.items}
+                    index={lb.index}
+                    setIndex={setIndex}
+                    onClose={() => setLb({ items: null, index: null })}
+                />
+            )}
+        </>
     );
 }
 
@@ -113,6 +313,216 @@ function Content({ content }) {
     }
     return null;
 }
+function useClickAway(ref, onAway) {
+    useEffect(() => {
+        const onDoc = (e) => {
+            if (ref.current && !ref.current.contains(e.target)) onAway?.();
+        };
+        document.addEventListener('mousedown', onDoc);
+        return () => document.removeEventListener('mousedown', onDoc);
+    }, [ref, onAway]);
+}
+function CommentActionsMenu({
+    isActive,
+    canEdit,
+    canToggle,
+    canDelete,
+    onEdit,
+    onToggle,
+    onDelete,
+    busy,
+}) {
+    const [open, setOpen] = useState(false);
+    const wrapRef = useRef(null);
+    useClickAway(wrapRef, () => setOpen(false));
+
+    return (
+        <div className="kebab-wrap" ref={wrapRef}>
+            <button
+                className="kebab-btn-comment"
+                aria-haspopup="menu"
+                aria-expanded={open}
+                onClick={() => setOpen((v) => !v)}
+                title="Actions"
+                disabled={busy}
+            >
+                <img
+                    className="ico-comment"
+                    src="/icons/more.png"
+                    alt="more"
+                    onError={(e) =>
+                        e.currentTarget.replaceWith(
+                            document.createTextNode('⋯')
+                        )
+                    }
+                />
+            </button>
+
+            {open && (
+                <div className="popover-menu" role="menu">
+                    {canEdit && (
+                        <button
+                            className="popover-item"
+                            onClick={() => {
+                                setOpen(false);
+                                onEdit?.();
+                            }}
+                        >
+                            <img
+                                className="ico"
+                                src="/icons/settings.png"
+                                alt=""
+                            />
+                            <span>Edit</span>
+                        </button>
+                    )}
+                    {canToggle && (
+                        <button
+                            className="popover-item"
+                            onClick={() => {
+                                setOpen(false);
+                                onToggle?.();
+                            }}
+                        >
+                            <img className="ico" src="/icons/eye.png" alt="" />
+                            <span>
+                                {isActive ? 'Make inactive' : 'Make active'}
+                            </span>
+                        </button>
+                    )}
+                    {canDelete && (
+                        <button
+                            className="popover-item danger"
+                            onClick={() => {
+                                setOpen(false);
+                                onDelete?.();
+                            }}
+                            disabled={busy}
+                        >
+                            <img
+                                className="ico"
+                                src="/icons/delete.png"
+                                alt=""
+                            />
+                            <span>{busy ? '…Deleting' : 'Delete'}</span>
+                        </button>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+}
+
+function PostActionsMenu({
+    isActive,
+    canEdit,
+    canToggle,
+    canDelete,
+    onEdit,
+    onToggle,
+    onDelete,
+    deleting,
+}) {
+    const [open, setOpen] = useState(false);
+    const wrapRef = useRef(null);
+    useClickAway(wrapRef, () => setOpen(false));
+
+    return (
+        <div className="kebab-wrap" ref={wrapRef}>
+            <button
+                className="kebab-btn"
+                aria-haspopup="menu"
+                aria-expanded={open}
+                onClick={() => setOpen((v) => !v)}
+                title="Actions"
+            >
+                {/* заменили текст на иконку */}
+                <img
+                    className="ico"
+                    src="/icons/more.png"
+                    alt="more"
+                    onError={(e) => {
+                        e.currentTarget.replaceWith(
+                            document.createTextNode('⋯')
+                        );
+                    }}
+                />
+            </button>
+
+            {open && (
+                <div className="popover-menu" role="menu">
+                    {canEdit && (
+                        <button
+                            className="popover-item"
+                            onClick={() => {
+                                setOpen(false);
+                                onEdit();
+                            }}
+                        >
+                            <img
+                                className="ico"
+                                src="/icons/settings.png"
+                                alt=""
+                            />
+                            <span>Edit post</span>
+                        </button>
+                    )}
+                    {canToggle && (
+                        <button
+                            className="popover-item"
+                            onClick={() => {
+                                setOpen(false);
+                                onToggle();
+                            }}
+                        >
+                            <img
+                                className="ico"
+                                src={
+                                    isActive
+                                        ? '/icons/eye.png'
+                                        : '/icons/eye.png'
+                                }
+                                alt=""
+                            />
+                            <span>
+                                {isActive ? 'Make inactive' : 'Make active'}
+                            </span>
+                        </button>
+                    )}
+                    {canDelete && (
+                        <button
+                            className="popover-item danger"
+                            onClick={() => {
+                                setOpen(false);
+                                onDelete();
+                            }}
+                            disabled={!!deleting}
+                        >
+                            <img
+                                className="ico"
+                                src="/icons/delete.png"
+                                alt=""
+                            />
+                            <span>
+                                {deleting ? '…Deleting' : 'Delete post'}
+                            </span>
+                        </button>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+}
+// где-нибудь рядом с другими утилитами
+const asBool = (v) => {
+    if (typeof v === 'boolean') return v;
+    if (typeof v === 'number') return v === 1;
+    if (typeof v === 'string') {
+        const s = v.trim().toLowerCase();
+        return s === '1' || s === 'true' || s === 'yes';
+    }
+    return false;
+};
 
 export default function PostDetails() {
     const dispatch = useDispatch();
@@ -128,7 +538,7 @@ export default function PostDetails() {
 
     const [editingId, setEditingId] = useState(null);
     const [editText, setEditText] = useState('');
-    const [busyById, setBusyById] = useState({}); // { [commentId]: true }
+    const [busyById, setBusyById] = useState({});
 
     function goBackSmart() {
         if (window.history.length > 1) return history.back();
@@ -142,7 +552,7 @@ export default function PostDetails() {
         const params = matchPath('/posts/:id', path);
         if (params?.id) {
             dispatch(fetchPost(params.id)).then((ok) => {
-                if (ok === false) goBackSmart(); // если 404 — сразу назад (лента/профиль/фолбэк)
+                if (ok === false) goBackSmart();
             });
         }
         const sc = document.querySelector('[data-scroller]');
@@ -310,9 +720,17 @@ export default function PostDetails() {
             const idx = copy.findIndex((c) => c.id === commentId);
             if (idx === -1) return prev;
             const c = copy[idx];
-            const current =
-                c.my_reaction ||
-                (c.liked ? 'like' : c.disliked ? 'dislike' : null);
+            const likedFlag = c.my_reaction
+                ? c.my_reaction === 'like'
+                : asBool(c.liked);
+            const dislikedFlag = c.my_reaction
+                ? c.my_reaction === 'dislike'
+                : asBool(c.disliked);
+            const current = likedFlag
+                ? 'like'
+                : dislikedFlag
+                ? 'dislike'
+                : null;
             let up = Number(c.likes_up_count || 0);
             let down = Number(c.likes_down_count || 0);
 
@@ -422,12 +840,12 @@ export default function PostDetails() {
 
     const authorId = Number(post?.author_id ?? post?.author?.id ?? 0);
     const isAuthor = meId > 0 && authorId > 0 && meId === authorId;
-    const canEditContent = isAuthor; // контент редактирует только автор
-    const canEditCategories = isAuthor || isAdmin; // категории — автор и админ
-    const canChangeStatus = isAdmin; // актив/неактив — только админ
+    const canEditContent = isAuthor;
+    const canEditCategories = isAuthor || isAdmin;
+    const canChangeStatus = isAdmin; // только админ
     const canDelete = isAuthor || isAdmin;
 
-    const created = formatDate(
+    const created = formatUSDate(
         post.created_at ||
             post.publish_date ||
             post.createdAt ||
@@ -447,184 +865,226 @@ export default function PostDetails() {
         post.categories_csv ||
         '';
 
-    const likesCount = post.likes_count ?? post.likes ?? 0;
-    const likesUp = post.likes_up_count ?? 0;
-    const likesDown = post.likes_down_count ?? 0;
-    const favCount = post.favorites_count ?? post.favorites ?? 0;
+    const likesUp = Number(
+        post.likes_up_count ?? post.likes_count ?? post.likes ?? 0
+    );
+    const likesDown = Number(post.likes_down_count ?? 0);
+    const favCount = Number(post.favorites_count ?? post.favorites ?? 0);
     const isActivePost = String(post.status || '').toLowerCase() === 'active';
 
+    // состояния пользователя по посту
+    const iLike = post.my_reaction === 'like' || post.liked === true;
+    const iDislike = post.my_reaction === 'dislike' || post.disliked === true;
+    const iFav = !!(post.favorited || post.is_favorite || post.my_favorite);
+
+    const onLikePost = () => dispatch(toggleLike(post.id));
+    const onDislikePost = () => dispatch(toggleDislike(post.id));
+    const onFavPost = () => dispatch(toggleFavorite(post.id));
+
     return (
-        <div className="container">
+        <div className="container post-details-page">
             <button className="auth-backline" onClick={handleBack}>
                 <span className="arrow" /> Back
             </button>
 
-            {/* Автор + дата/категория */}
-            <div
-                className="post-header"
-                style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 12,
-                    margin: '8px 0',
-                }}
-            >
-                <img
-                    src={authorAvatar || '/placeholder-avatar.png'}
-                    onError={(e) => {
-                        e.currentTarget.src = '/placeholder-avatar.png';
-                    }}
-                    alt=""
-                    style={{
-                        width: 44,
-                        height: 44,
-                        borderRadius: '50%',
-                        objectFit: 'cover',
-                        border: '1px solid var(--line)',
-                    }}
-                />
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <div
-                        style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 8,
-                            flexWrap: 'wrap',
-                        }}
-                    >
-                        <h2 className="inria-serif-bold" style={{ margin: 0 }}>
-                            {post.title}
-                        </h2>
+            <div className="post-hero">
+                <div className="post-title-row">
+                    <h1 className="inria-serif-bold post-title">
+                        {post.title}
+                    </h1>
+                    {!isActivePost && (
+                        <span
+                            className="status-pill inactive"
+                            role="status"
+                            aria-label="Post is inactive"
+                            title="Post is inactive (hidden from feed)"
+                        >
+                            Inactive
+                        </span>
+                    )}
+                    <div className="post-title-actions">
+                        {/* TOP favorite */}
+                        <button
+                            className={`icon-btn ${iFav ? 'is-on' : ''}`}
+                            onClick={onFavPost}
+                            aria-pressed={iFav}
+                            title={
+                                iFav
+                                    ? 'Remove from favorites'
+                                    : 'Save to favorites'
+                            }
+                        >
+                            <img
+                                className="ico"
+                                src={
+                                    iFav
+                                        ? '/icons/fav_on.png'
+                                        : '/icons/fav_off.png'
+                                }
+                                alt=""
+                            />
+                        </button>
 
-                        {post.status && (
-                            <span
-                                title={`Status: ${
-                                    isActivePost ? 'active' : 'inactive'
-                                }`}
-                                style={{
-                                    display: 'inline-block',
-                                    padding: '2px 8px',
-                                    borderRadius: 999,
-                                    fontSize: 12,
-                                    lineHeight: '18px',
-                                    border: '1px solid var(--line)',
-                                    background: isActivePost
-                                        ? '#e8fff3'
-                                        : '#fff5f5',
-                                    color: isActivePost ? '#0a7f43' : '#9a1c1c',
+                        {(canEditContent ||
+                            canEditCategories ||
+                            canChangeStatus ||
+                            canDelete) && (
+                            <PostActionsMenu
+                                isActive={isActivePost}
+                                canEdit={canEditContent || canEditCategories}
+                                canToggle={canChangeStatus}
+                                canDelete={canDelete}
+                                onEdit={() => {
+                                    sessionStorage.setItem('cameFromPost', '1');
+                                    navigate(`/posts/${post.id}/edit`);
                                 }}
-                            >
-                                {isActivePost ? 'Active' : 'Inactive'}
-                            </span>
+                                onToggle={async () => {
+                                    const next =
+                                        post.status === 'active'
+                                            ? 'inactive'
+                                            : 'active';
+                                    await dispatch(
+                                        updatePost({
+                                            id: post.id,
+                                            status: next,
+                                        })
+                                    );
+                                }}
+                                onDelete={async () => {
+                                    if (deleting) return;
+                                    setDeleting(true);
+                                    try {
+                                        await dispatch(deletePost(post.id));
+                                        goBackSmart();
+                                    } finally {
+                                        setDeleting(false);
+                                    }
+                                }}
+                                deleting={deleting}
+                            />
                         )}
                     </div>
+                </div>
 
-                    <div className="post-meta">
-                        <span>{created}</span>
-                        {categoryName && <span> · {categoryName}</span>}
-                        {authorLogin && <span> · by {authorLogin}</span>}
-                    </div>
+                {/* разделитель после шапки */}
+                <div className="post-divider" />
+
+                {/* автор и мета */}
+                <div className="author-row-post">
+                    <img
+                        src={authorAvatar || '/placeholder-avatar.png'}
+                        onError={(e) =>
+                            (e.currentTarget.src = '/placeholder-avatar.png')
+                        }
+                        alt=""
+                    />
+                    <div className="author-name-post">@{authorLogin}</div>
                 </div>
             </div>
 
-            {/* Контент */}
             {/* Контент */}
             <Content
                 content={post.content || post.content_html || post.contentHtml}
             />
 
-            {/* Действия */}
-            <div
-                className="post-actions"
-                style={{
-                    display: 'flex',
-                    gap: 8,
-                    flexWrap: 'wrap',
-                    marginTop: 8,
-                }}
-            >
-                <button
-                    className={`mini-btn ${post.liked ? 'is-on' : ''}`}
-                    onClick={() => dispatch(toggleLike(post.id))}
-                    aria-pressed={!!post.liked}
-                >
-                    ♥ {likesUp}
-                </button>
-                <button
-                    className={`mini-btn ${post.disliked ? 'is-on' : ''}`}
-                    onClick={() => dispatch(toggleDislike(post.id))}
-                    aria-pressed={!!post.disliked}
-                    title="Dislike"
-                >
-                    👎 {likesDown}
-                </button>
-                <button
-                    className={`mini-btn ${post.favorited ? 'is-on' : ''}`}
-                    onClick={() => dispatch(toggleFavorite(post.id))}
-                    aria-pressed={!!post.favorited}
-                >
-                    ☆ {favCount}
-                </button>
-                {(canEditContent || canEditCategories) && (
-                    <button
-                        className="mini-btn"
-                        onClick={() => {
-                            sessionStorage.setItem('cameFromPost', '1');
-                            navigate(`/posts/${post.id}/edit`);
-                        }}
-                    >
-                        ✎ Edit
-                    </button>
-                )}
+            {/* Футер поста с метриками/тегами и датой справа */}
+            <div className="post-footer">
+                <div className="footer-left">
+                    <div className="footer-actions">
+                        <button
+                            className={`action-btn ${iLike ? 'is-on' : ''}`}
+                            onClick={onLikePost}
+                            aria-pressed={iLike}
+                            title="Like"
+                        >
+                            <img
+                                className="ico"
+                                src={
+                                    iLike
+                                        ? '/icons/like-on.png'
+                                        : '/icons/like-off.png'
+                                }
+                                alt=""
+                            />
+                            <span>{likesUp}</span>
+                        </button>
 
-                {canChangeStatus && (
-                    <button
-                        className="mini-btn"
-                        onClick={async () => {
-                            const next =
-                                post.status === 'active'
-                                    ? 'inactive'
-                                    : 'active';
-                            await dispatch(
-                                updatePost({ id: post.id, status: next })
-                            );
-                        }}
-                        title={
-                            post.status === 'active' ? 'Deactivate' : 'Activate'
-                        }
-                    >
-                        {post.status === 'active'
-                            ? '⏸ Make inactive'
-                            : '▶ Make active'}
-                    </button>
-                )}
+                        <button
+                            className={`action-btn ${iDislike ? 'is-on' : ''}`}
+                            onClick={onDislikePost}
+                            aria-pressed={iDislike}
+                            title="Dislike"
+                        >
+                            <img
+                                className="ico"
+                                src={
+                                    iDislike
+                                        ? '/icons/dislike-on.png'
+                                        : '/icons/dislike-off.png'
+                                }
+                                alt=""
+                            />
+                            <span>{likesDown}</span>
+                        </button>
+                    </div>
 
-                {canDelete && (
-                    <button
-                        className="mini-btn"
-                        onClick={async () => {
-                            if (deleting) return;
-                            setDeleting(true);
-                            try {
-                                await dispatch(deletePost(post.id));
-                                goBackSmart(); // назад на ленту/профиль (или fallback)
-                            } finally {
-                                setDeleting(false);
-                            }
-                        }}
-                        style={{ color: '#9a1c1c' }}
-                        disabled={deleting}
-                    >
-                        {deleting ? '…Deleting' : '🗑 Delete'}
-                    </button>
-                )}
+                    {categoryName && (
+                        <div className="chips">
+                            {String(categoryName)
+                                .split(',')
+                                .map((n, i) => (
+                                    <span key={i} className="chip-post">
+                                        {n.trim()}
+                                    </span>
+                                ))}
+                        </div>
+                    )}
+                </div>
+
+                <div className="right">{created}</div>
             </div>
 
             {/* Комментарии */}
             <div style={{ marginTop: 18 }}>
-                <h3 className="inria-serif-bold" style={{ margin: '0 0 8px' }}>
-                    Comments
-                </h3>
+                <h3 className="inria-serif-bold section-title">Comments</h3>
+
+                {/* Форма добавления комментария — над списком */}
+                <div className="comments-input-wrap">
+                    {auth?.token ? (
+                        <div className="comment-input-row">
+                            <input
+                                className="comment-input"
+                                type="text"
+                                placeholder="your comment..."
+                                value={newComment}
+                                onChange={(e) => setNewComment(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey)
+                                        submitComment();
+                                }}
+                                disabled={sending}
+                            />
+                            <button
+                                className="comment-send"
+                                onClick={submitComment}
+                                disabled={sending || !newComment.trim()}
+                                aria-label="Send comment"
+                                title="Send"
+                            >
+                                <img
+                                    className="ico"
+                                    src="/icons/send.png"
+                                    alt=""
+                                />
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="auth-muted">
+                            To comment, please sign in.
+                        </div>
+                    )}
+                </div>
+
                 {cLoading && (
                     <div className="auth-muted">Loading comments…</div>
                 )}
@@ -641,7 +1101,6 @@ export default function PostDetails() {
                         replyText={replyText}
                         setReplyText={setReplyText}
                         submitReply={submitReply}
-                        // new props for moderation / editing
                         meId={meId}
                         isAdmin={isAdmin}
                         canEditComment={canEditComment}
@@ -658,177 +1117,99 @@ export default function PostDetails() {
                         busyById={busyById}
                     />
                 )}
-                {/* Форма добавления комментария */}
-                <div style={{ marginTop: 14 }}>
-                    {auth?.token ? (
-                        <div style={{ display: 'grid', gap: 8 }}>
-                            <textarea
-                                placeholder="Write a comment…"
-                                value={newComment}
-                                onChange={(e) => setNewComment(e.target.value)}
-                                onKeyDown={(e) => {
-                                    if (
-                                        (e.ctrlKey || e.metaKey) &&
-                                        e.key === 'Enter'
-                                    )
-                                        submitComment();
-                                }}
-                                rows={3}
-                                style={{ width: '100%', resize: 'vertical' }}
-                            />
-
-                            <div
-                                style={{
-                                    display: 'flex',
-                                    gap: 8,
-                                    justifyContent: 'flex-end',
-                                }}
-                            >
-                                <button
-                                    className="mini-btn"
-                                    onClick={submitComment}
-                                    disabled={sending || !newComment.trim()}
-                                >
-                                    {sending ? 'Sending…' : 'Post comment'}
-                                </button>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="auth-muted">
-                            To comment, please sign in.
-                        </div>
-                    )}
-                </div>
             </div>
 
             <div id="comments-anchor" />
         </div>
     );
 }
-function CommentNode({
-    node,
-    level = 0,
-    onLike,
-    onDislike,
-    replyOpenFor,
-    setReplyOpenFor,
-    replyText,
-    setReplyText,
-    submitReply,
-    // new:
-    meId,
-    isAdmin,
-    canEditComment,
-    canToggleStatus,
-    canDeleteComment,
-    startEdit,
-    saveEdit,
-    cancelEdit,
-    toggleCommentStatus,
-    deleteCommentById,
-    editingId,
-    editText,
-    setEditText,
-    busyById = {},
-}) {
-    const indent = Math.min(level, 6) * 16; // макс 6 уровней визуально
+function CommentNode(props) {
+    const {
+        node,
+        level = 0,
+        onLike,
+        onDislike,
+        replyOpenFor,
+        setReplyOpenFor,
+        replyText,
+        setReplyText,
+        submitReply,
+        meId,
+        canEditComment,
+        canToggleStatus,
+        canDeleteComment,
+        startEdit,
+        saveEdit,
+        cancelEdit,
+        toggleCommentStatus,
+        deleteCommentById,
+        editingId,
+        editText,
+        setEditText,
+        busyById = {},
+    } = props;
+    const { node: _parentNode, level: _parentLevel, ...restProps } = props;
+    const indent = Math.min(level, 6) * 16;
+    const [showReplies, setShowReplies] = useState(false);
+
+    const isLiked = node.my_reaction === 'like' || asBool(node.liked);
+    const isDisliked = node.my_reaction === 'dislike' || asBool(node.disliked);
+
     const cAva =
         assetUrl(node.author_avatar) ||
         node.author_avatar ||
         '/placeholder-avatar.png';
     const cName = node.author_login || node.author_name || 'user';
-    const cDate = formatDate(node.created_at || node.createdAt);
-    const isMine = Number(node.author_id) === Number(meId);
+    const cDate = formatUSDate(node.created_at || node.createdAt);
     const editing = editingId === node.id;
     const busy = !!busyById[node.id];
     const status = String(node.status || 'active');
     const isActive = status === 'active';
 
     return (
-        <div style={{ marginLeft: indent, marginBottom: 10 }}>
-            <div
-                className="comment-row"
-                style={{
-                    display: 'grid',
-                    gridTemplateColumns: '40px 1fr',
-                    gap: 10,
-                }}
-            >
+        <div className="comment-node">
+            <div className="comment-row comment-grid">
+                {/* col: avatar */}
                 <img
+                    className="c-ava"
                     src={cAva}
-                    onError={(e) => {
-                        e.currentTarget.src = '/placeholder-avatar.png';
-                    }}
+                    onError={(e) =>
+                        (e.currentTarget.src = '/placeholder-avatar.png')
+                    }
                     alt=""
-                    style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: '50%',
-                        objectFit: 'cover',
-                        border: '1px solid var(--line)',
-                    }}
                 />
-                <div>
-                    <div
-                        className="auth-muted"
-                        style={{ fontSize: 13, marginBottom: 4 }}
-                    >
-                        <b>{cName}</b> · {cDate}
-                        {status && (
-                            <span
-                                title={`Status: ${
-                                    isActive ? 'active' : 'inactive'
-                                }`}
-                                style={{
-                                    display: 'inline-block',
-                                    marginLeft: 8,
-                                    padding: '0 6px',
-                                    borderRadius: 999,
-                                    fontSize: 11,
-                                    lineHeight: '18px',
-                                    border: '1px solid var(--line)',
-                                    background: isActive
-                                        ? '#e8fff3'
-                                        : '#fff5f5',
-                                    color: isActive ? '#0a7f43' : '#9a1c1c',
-                                }}
-                            >
-                                {isActive ? 'Active' : 'Inactive'}
-                            </span>
-                        )}
+
+                {/* col: main content */}
+                <div className="c-main">
+                    {/* header: name + status; kebab сидит в правой колонке */}
+                    <div className="c-head">
+                        <div className="c-author">
+                            <b>{cName}</b>
+                            {status && (
+                                <span
+                                    className={`c-status ${
+                                        isActive ? 'on' : 'off'
+                                    }`}
+                                >
+                                    {isActive ? 'Active' : 'Inactive'}
+                                </span>
+                            )}
+                        </div>
                     </div>
+
                     {!editing ? (
-                        <div
-                            style={{
-                                whiteSpace: 'pre-wrap',
-                                opacity: isActive ? 1 : 0.75,
-                            }}
-                        >
+                        <div className={`c-text ${!isActive ? 'is-dim' : ''}`}>
                             {node.content || node.text || ''}
                         </div>
                     ) : (
-                        <div style={{ display: 'grid', gap: 6 }}>
+                        <div className="c-edit">
                             <textarea
                                 value={editText}
                                 onChange={(e) => setEditText(e.target.value)}
                                 rows={3}
-                                style={{ width: '100%', resize: 'vertical' }}
                                 disabled={busy}
                             />
-                            <div
-                                style={{
-                                    display: 'flex',
-                                    gap: 8,
-                                    justifyContent: 'flex-end',
-                                }}
-                            >
-                                <button
-                                    className="mini-btn"
-                                    onClick={() => saveEdit(node.id)}
-                                    disabled={busy || !editText.trim()}
-                                >
-                                    {busy ? 'Saving…' : 'Save'}
-                                </button>
+                            <div className="c-edit-actions">
                                 <button
                                     className="mini-btn"
                                     onClick={cancelEdit}
@@ -836,121 +1217,43 @@ function CommentNode({
                                 >
                                     Cancel
                                 </button>
+                                <button
+                                    className="mini-btn "
+                                    onClick={() => saveEdit(node.id)}
+                                    disabled={busy || !editText.trim()}
+                                >
+                                    {busy ? 'Saving…' : 'Save'}
+                                </button>
                             </div>
                         </div>
                     )}
 
-                    <div
-                        className="comment-actions"
-                        style={{ display: 'flex', gap: 8, marginTop: 6 }}
-                    >
+                    {/* bottom left: reply toggle + inline reply form */}
+                    <div className="c-bottom-left">
                         <button
-                            className={`mini-btn ${
-                                node.my_reaction === 'like' || node.liked
-                                    ? 'is-on'
-                                    : ''
-                            }`}
-                            onClick={() => onLike(node.id)}
-                            aria-pressed={
-                                node.my_reaction === 'like' || node.liked
-                            }
-                            title="Like"
-                            disabled={!isActive}
-                        >
-                            ♥ {Number(node.likes_up_count || 0)}
-                        </button>
-
-                        <button
-                            className={`mini-btn ${
-                                node.my_reaction === 'dislike' || node.disliked
-                                    ? 'is-on'
-                                    : ''
-                            }`}
-                            onClick={() => onDislike(node.id)}
-                            aria-pressed={
-                                node.my_reaction === 'dislike' || node.disliked
-                            }
-                            title="Dislike"
-                            disabled={!isActive}
-                        >
-                            👎 {Number(node.likes_down_count || 0)}
-                        </button>
-
-                        <button
-                            className="mini-btn"
+                            className="reply-link"
                             onClick={() =>
                                 setReplyOpenFor(
                                     replyOpenFor === node.id ? null : node.id
                                 )
                             }
-                            title="Reply"
                             disabled={!isActive}
+                            title="Reply"
                         >
-                            ↩ Reply
+                            reply…
                         </button>
-                        {/* Edit — только автор */}
-                        {canEditComment(node) && !editing && (
-                            <button
-                                className="mini-btn"
-                                onClick={() => startEdit(node)}
-                                disabled={busy}
-                                title="Edit"
-                            >
-                                ✎ Edit
-                            </button>
-                        )}
-                        {/* Status toggle — автор или админ */}
-                        {canToggleStatus(node) && (
-                            <button
-                                className="mini-btn"
-                                onClick={() => toggleCommentStatus(node)}
-                                disabled={busy}
-                                title={
-                                    isActive ? 'Make inactive' : 'Make active'
-                                }
-                            >
-                                {isActive ? '⏸ Make inactive' : '▶ Make active'}
-                            </button>
-                        )}
-                        {/* Delete — автор или админ */}
-                        {canDeleteComment(node) && (
-                            <button
-                                className="mini-btn"
-                                onClick={() => deleteCommentById(node)}
-                                style={{ color: '#9a1c1c' }}
-                                disabled={busy}
-                                title="Delete"
-                            >
-                                {busy ? '…Deleting' : '🗑 Delete'}
-                            </button>
-                        )}
                     </div>
 
                     {replyOpenFor === node.id && (
-                        <div style={{ marginTop: 8 }}>
+                        <div className="c-reply-form">
                             <textarea
                                 placeholder={`Reply to @${cName}…`}
                                 value={replyText}
                                 onChange={(e) => setReplyText(e.target.value)}
                                 rows={3}
-                                style={{ width: '100%', resize: 'vertical' }}
                                 disabled={!isActive}
                             />
-                            <div
-                                style={{
-                                    display: 'flex',
-                                    gap: 8,
-                                    justifyContent: 'flex-end',
-                                    marginTop: 6,
-                                }}
-                            >
-                                <button
-                                    className="mini-btn"
-                                    onClick={() => submitReply(node.id)}
-                                    disabled={!replyText.trim() || !isActive}
-                                >
-                                    Send reply
-                                </button>
+                            <div className="c-reply-actions">
                                 <button
                                     className="mini-btn"
                                     onClick={() => {
@@ -960,43 +1263,104 @@ function CommentNode({
                                 >
                                     Cancel
                                 </button>
+                                <button
+                                    className="mini-btn"
+                                    onClick={() => submitReply(node.id)}
+                                    disabled={!replyText.trim() || !isActive}
+                                >
+                                    Send reply
+                                </button>
                             </div>
                         </div>
                     )}
+                </div>
+
+                {/* col: right rail (kebab + reactions + date) */}
+                <div className="c-right">
+                    <CommentActionsMenu
+                        isActive={isActive}
+                        canEdit={canEditComment(node) && !editing}
+                        canToggle={canToggleStatus(node)}
+                        canDelete={canDeleteComment(node)}
+                        onEdit={() => startEdit(node)}
+                        onToggle={() => toggleCommentStatus(node)}
+                        onDelete={() => deleteCommentById(node)}
+                        busy={busy}
+                    />
+
+                    <div className="c-reactions">
+                        <button
+                            onClick={() => onLike(node.id)}
+                            className={`c-action ${isLiked ? 'is-on' : ''}`}
+                            aria-pressed={isLiked}
+                            disabled={!isActive}
+                            title="Like"
+                        >
+                            <img
+                                className="ico"
+                                src={
+                                    node.my_reaction === 'like' || node.liked
+                                        ? '/icons/com-like-on.png'
+                                        : '/icons/com-like-off.png'
+                                }
+                                alt=""
+                            />
+                            <span>{Number(node.likes_up_count || 0)}</span>
+                        </button>
+
+                        <button
+                            onClick={() => onDislike(node.id)}
+                            className={`c-action ${isDisliked ? 'is-on' : ''}`}
+                            aria-pressed={isDisliked}
+                            disabled={!isActive}
+                            title="Dislike"
+                        >
+                            <img
+                                className="ico"
+                                src={
+                                    node.my_reaction === 'dislike' ||
+                                    node.disliked
+                                        ? '/icons/com-dislike-on.png'
+                                        : '/icons/com-dislike-off.png'
+                                }
+                                alt=""
+                            />
+                            <span>{Number(node.likes_down_count || 0)}</span>
+                        </button>
+                    </div>
+
+                    <div className="c-date">{cDate}</div>
                 </div>
             </div>
 
             {/* children */}
             {node.replies && node.replies.length > 0 && (
-                <div style={{ marginTop: 6 }}>
-                    {node.replies.map((child) => (
-                        <CommentNode
-                            key={child.id}
-                            node={child}
-                            level={level + 1}
-                            onLike={onLike}
-                            onDislike={onDislike}
-                            replyOpenFor={replyOpenFor}
-                            setReplyOpenFor={setReplyOpenFor}
-                            replyText={replyText}
-                            setReplyText={setReplyText}
-                            submitReply={submitReply}
-                            meId={meId}
-                            isAdmin={isAdmin}
-                            canEditComment={canEditComment}
-                            canToggleStatus={canToggleStatus}
-                            canDeleteComment={canDeleteComment}
-                            startEdit={startEdit}
-                            saveEdit={saveEdit}
-                            cancelEdit={cancelEdit}
-                            toggleCommentStatus={toggleCommentStatus}
-                            deleteCommentById={deleteCommentById}
-                            editingId={editingId}
-                            editText={editText}
-                            setEditText={setEditText}
-                            busyById={busyById}
-                        />
-                    ))}
+                <div className="replies-area">
+                    {!showReplies ? (
+                        <button
+                            className="show-replies-btn"
+                            onClick={() => setShowReplies(true)}
+                        >
+                            Show replies ({node.replies.length})
+                        </button>
+                    ) : (
+                        <>
+                            {node.replies.map((child) => (
+                                <CommentNode
+                                    key={child.id}
+                                    {...restProps} // тут точно нет node/level
+                                    node={child}
+                                    level={level + 1}
+                                />
+                            ))}
+                            <button
+                                className="show-replies-btn"
+                                onClick={() => setShowReplies(false)}
+                            >
+                                Hide replies
+                            </button>
+                        </>
+                    )}
                 </div>
             )}
         </div>

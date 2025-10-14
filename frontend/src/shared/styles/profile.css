@@ -666,6 +666,102 @@
     opacity: 0.6;
     cursor: default;
 }
+/*  ================================================================================================*/
+
+/* ===== Edit-specific small helpers (повторно используют compose-стиль) ===== */
+
+/* две кнопки в футере справа */
+.compose-footer.two {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.compose-footer.two .grow {
+    flex: 1;
+}
+
+.save-btn {
+    padding: 10px 18px;
+    font-size: 18px;
+    border: 0;
+    border-radius: 14px;
+    cursor: pointer;
+    color: #e9ecf2;
+    background: #281456;
+    transition: transform 0.12s ease, box-shadow 0.12s ease,
+        background 0.12s ease;
+}
+.save-btn:hover {
+    filter: brightness(1.06);
+    transform: translateY(-1px);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07),
+        0 0 16px rgba(123, 77, 255, 0.4);
+}
+.save-btn:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+/* Cancel — лёгкая "ghost" */
+.ghost-btn {
+    background: transparent;
+    border: 0;
+    color: #7c7c7c;
+    padding: 8px 10px;
+    border-radius: 10px;
+    cursor: pointer;
+}
+.ghost-btn:hover {
+    color: #e9ecf2;
+}
+
+/* блок со статусом в стиле чипов */
+.status-ctl {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-right: auto; /* чтобы кнопки ушли вправо */
+}
+
+/* небольшие дот-индикаторы */
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 6px;
+}
+.status-dot.on {
+    background: #2ecc71;
+} /* зелёный */
+.status-dot.off {
+    background: #ff5b5b;
+} /* красный */
+
+/* поджали чипы для статуса, чтобы выглядели аккуратно */
+.status-ctl .chip-scroll {
+    padding: 6px 12px;
+    font-size: 13px;
+}
+
+/* Кнопка replace поверх превью */
+.thumb-repl {
+    position: absolute;
+    bottom: 2px;
+    left: 2px;
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 2px 6px;
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1;
+}
+.thumb-repl:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
 
 /* ================================ EDIT PROFILE inside modal (reuse compose-*) ================================= */
 

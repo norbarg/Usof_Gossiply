@@ -1,22 +1,23 @@
-// frontend/src/features/posts/pages/PostEdit.jsx
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { matchPath, parsePath, navigate } from '../../../shared/router/helpers';
 import api from '../../../shared/api/axios';
 import { fetchPost, updatePost } from '../postsActions';
 import { assetUrl } from '../../../shared/utils/assetUrl';
+import uploadIconUrl from '/icons/upload.png';
+import '../../../shared/styles/profile.css';
 
 const uploadEndpoint = (postId) => `/posts/${postId}/image`;
 
 const normalizeUploadUrl = (s) => {
     if (!s) return '';
     let u = String(s).trim().replace(/\\/g, '/');
-    u = u.replace(/^\/api(\/|$)/i, '/'); // убираем /api
-    u = u.replace(/^\/?uploads\/+/i, '/uploads/'); // приводим к /uploads/...
+    u = u.replace(/^\/api(\/|$)/i, '/');
+    u = u.replace(/^\/?uploads\/+/i, '/uploads/');
     return u;
 };
 
-// Вытянуть blocks из content (массив, {blocks}, либо JSON-строка)
+// blocks helpers
 function toBlocks(content) {
     if (Array.isArray(content)) return content;
     if (content && typeof content === 'object' && Array.isArray(content.blocks))
@@ -34,8 +35,6 @@ function toBlocks(content) {
     }
     return [];
 }
-
-// Собрать плейн-текст из текстовых блоков
 function blocksToPlainText(blocks) {
     try {
         return (blocks || [])
@@ -46,13 +45,11 @@ function blocksToPlainText(blocks) {
         return '';
     }
 }
-
-// Найти первую картинку в блоках
-function firstImageUrl(blocks) {
-    const img = (blocks || []).find(
-        (b) => String(b?.type).toLowerCase() === 'img'
-    );
-    return img?.url || img?.src || img?.path || '';
+function allImageUrls(blocks) {
+    return (blocks || [])
+        .filter((b) => String(b?.type).toLowerCase() === 'img')
+        .map((b) => b.url || b.src || b.path)
+        .filter(Boolean);
 }
 
 export default function PostEdit() {
@@ -62,14 +59,23 @@ export default function PostEdit() {
 
     const [title, setTitle] = useState('');
     const [text, setText] = useState('');
-    const [imageUrl, setImageUrl] = useState('');
+    const [images, setImages] = useState([]);
     const [allCats, setAllCats] = useState([]);
     const [catIds, setCatIds] = useState([]);
     const [status, setStatus] = useState('active');
     const [saving, setSaving] = useState(false);
     const [uploading, setUploading] = useState(false);
+    const [error, setError] = useState('');
 
+    // cats popover (как в New Post)
+    const [catsOpen, setCatsOpen] = useState(false);
+    const catsBtnRef = useRef(null);
+    const catsPopRef = useRef(null);
+    const scrollRef = useRef(null);
+
+    // file picker: add/replace
     const fileInputRef = useRef(null);
+    const pickModeRef = useRef({ type: 'add', index: -1 });
 
     const meId = auth?.user?.id;
     const isAdmin = auth?.user?.role === 'admin';
@@ -79,45 +85,50 @@ export default function PostEdit() {
     const canEditCategories = !!(isAuthor || isAdmin);
     const canChangeStatus = !!isAdmin;
 
-    const onCancel = () => {
-        const mark = sessionStorage.getItem('cameFromPost');
-        if (mark) sessionStorage.removeItem('cameFromPost');
-        if (window.history.length > 1) {
-            // вернёт на страницу поста (если пришли с неё), а дальше системный Back вернёт в ленту/профиль
-            history.back();
-        } else {
-            // если открыли /edit напрямую — просто уйдём на сам пост
-            navigate(`/posts/${post?.id}`, { replace: true });
-        }
-    };
-
+    // блокируем скролл под модалкой (как в New Post)
     useEffect(() => {
-        const path = parsePath();
-        const params = matchPath('/posts/:id/edit', path);
+        const prev = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = prev;
+        };
+    }, []);
+
+    // загрузка поста
+    useEffect(() => {
+        const params = matchPath('/posts/:id/edit', parsePath());
         if (params?.id) dispatch(fetchPost(params.id));
     }, [dispatch]);
 
+    // загрузка категорий
     useEffect(() => {
         (async () => {
             try {
-                const { data } = await api.get('/categories');
-                const rows = data.items ?? data.results ?? data.data ?? data;
-                setAllCats(rows);
-            } catch {}
+                const { data } = await api.get('/categories', {
+                    params: { page: 1, limit: 1000 },
+                });
+                const rows =
+                    data.items ?? data.results ?? data.data ?? data ?? [];
+                setAllCats(Array.isArray(rows) ? rows : []);
+            } catch {
+                setAllCats([]);
+            }
         })();
     }, []);
 
+    // распаковка контента поста
     useEffect(() => {
         if (!post) return;
         const blocks = toBlocks(post.content);
         setTitle(post.title || '');
         setText(blocksToPlainText(blocks));
-        setImageUrl(firstImageUrl(blocks) || '');
+        setImages(allImageUrls(blocks));
         setStatus(post.status || 'active');
     }, [post?.id]);
 
+    // выбранные категории
     useEffect(() => {
-        if (!post || !Array.isArray(allCats) || !allCats.length) return;
+        if (!post || !allCats.length) return;
         (async () => {
             try {
                 const { data } = await api.get(`/posts/${post.id}/categories`);
@@ -131,10 +142,60 @@ export default function PostEdit() {
         })();
     }, [post?.id, allCats.length]);
 
+    // закрытие popover по клику вне/ESC
+    useEffect(() => {
+        if (!catsOpen) return;
+        const onClickOutside = (e) => {
+            if (!catsPopRef.current || !catsBtnRef.current) return;
+            if (
+                !catsPopRef.current.contains(e.target) &&
+                !catsBtnRef.current.contains(e.target)
+            ) {
+                setCatsOpen(false);
+            }
+        };
+        const onEsc = (e) => e.key === 'Escape' && setCatsOpen(false);
+        document.addEventListener('mousedown', onClickOutside);
+        document.addEventListener('keydown', onEsc);
+        return () => {
+            document.removeEventListener('mousedown', onClickOutside);
+            document.removeEventListener('keydown', onEsc);
+        };
+    }, [catsOpen]);
+
+    // горизонтальный скролл в поповере
+    useEffect(() => {
+        if (!catsOpen) return;
+        const scroller = scrollRef.current;
+        if (!scroller) return;
+        const onWheel = (e) => {
+            if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+                e.preventDefault();
+                scroller.scrollLeft += e.deltaY;
+            }
+        };
+        scroller.addEventListener('wheel', onWheel, { passive: false });
+        return () => scroller.removeEventListener('wheel', onWheel);
+    }, [catsOpen]);
+
     const toggleCat = (cid) => {
         setCatIds((prev) =>
-            prev.includes(cid) ? prev.filter((x) => x !== cid) : [...prev, cid]
+            prev.includes(+cid)
+                ? prev.filter((x) => x !== +cid)
+                : [...prev, +cid]
         );
+    };
+
+    const onCancel = useCallback(() => {
+        const mark = sessionStorage.getItem('cameFromPost');
+        if (mark) sessionStorage.removeItem('cameFromPost');
+        if (window.history.length > 1) history.back();
+        else navigate(`/posts/${post?.id}`, { replace: true });
+    }, [post?.id]);
+
+    // клик по подложке закрывает, как и у New Post
+    const onVeilClick = (e) => {
+        if (e.target === e.currentTarget) onCancel();
     };
 
     const uploadImage = async (file, postId) => {
@@ -142,11 +203,8 @@ export default function PostEdit() {
         setUploading(true);
         try {
             const form = new FormData();
-            // на бэке стоит upload.single('image') → имя поля именно 'image'
             form.append('image', file);
-            const url = uploadEndpoint(postId);
-            // важное: не ставим Content-Type вручную — axios сам проставит boundary
-            const { data } = await api.patch(url, form);
+            const { data } = await api.patch(uploadEndpoint(postId), form);
             const uploaded =
                 data?.url ||
                 data?.path ||
@@ -160,184 +218,352 @@ export default function PostEdit() {
             setUploading(false);
         }
     };
+    const addImageUrl = (url) =>
+        setImages((prev) => [...prev, normalizeUploadUrl(url)]);
+    const replaceImageUrl = (index, url) =>
+        setImages((prev) => {
+            const next = prev.slice();
+            next[index] = normalizeUploadUrl(url);
+            return next;
+        });
+    const removeImageAt = (index) =>
+        setImages((prev) => prev.filter((_, i) => i !== index));
 
-    const pickAddImage = () => {
-        if (!canEditContent) return;
-        if (!fileInputRef.current) return;
-        fileInputRef.current.onchange = async (e) => {
-            const f = e.target.files?.[0];
-            e.target.value = '';
-            if (!f) return;
-            const url = await uploadImage(f, post?.id);
-            if (url) setImageUrl(url);
-        };
+    const openPicker = (type, index = -1) => {
+        if (!fileInputRef.current || !post?.id) return;
+        pickModeRef.current = { type, index };
+        fileInputRef.current.multiple = type === 'add';
         fileInputRef.current.click();
     };
-
-    const pickReplaceImage = () => pickAddImage();
+    const onFilesPicked = async (e) => {
+        const files = Array.from(e.target.files || []);
+        e.target.value = '';
+        if (!files.length) return;
+        const mode = pickModeRef.current;
+        try {
+            setUploading(true);
+            if (mode.type === 'add') {
+                for (const f of files) {
+                    const url = await uploadImage(f, post?.id);
+                    if (url) addImageUrl(url);
+                }
+            } else {
+                const f = files[0];
+                if (f) {
+                    const url = await uploadImage(f, post?.id);
+                    if (url) replaceImageUrl(mode.index, url);
+                }
+            }
+        } finally {
+            setUploading(false);
+        }
+    };
 
     const onSave = async () => {
         if (saving || !post) return;
         setSaving(true);
+        setError('');
         try {
             const payload = { id: post.id };
             if (canEditContent) {
-                payload.title = title;
-
-                // собираем blocks из простого текста и (опционально) картинки
                 const contentBlocks = [];
                 const txt = (text || '').trim();
-                if (txt) contentBlocks.push({ type: 'p', text: txt });
-                const img = normalizeUploadUrl(imageUrl || '');
-                if (img) contentBlocks.push({ type: 'img', url: img });
-
+                if (txt) {
+                    txt.split(/\n\s*\n/).forEach((p) => {
+                        const t = p.trim();
+                        if (t) contentBlocks.push({ type: 'p', text: t });
+                    });
+                }
+                (images || []).forEach((u) => {
+                    const img = normalizeUploadUrl(u);
+                    if (img) contentBlocks.push({ type: 'img', url: img });
+                });
+                payload.title = title;
                 payload.contentBlocks = contentBlocks;
             }
             if (canEditCategories) payload.categories = catIds;
             if (canChangeStatus) payload.status = status;
 
             await dispatch(updatePost(payload));
-            // Сохранились из /edit → вернёмся на пост, заменив /edit в истории
             sessionStorage.removeItem('cameFromPost');
             navigate(`/posts/${post.id}`, { replace: true });
+        } catch (e) {
+            setError(String(e?.message || e));
         } finally {
             setSaving(false);
         }
     };
 
-    if (!post) return <div className="container">Loading…</div>;
+    if (!post) return null;
 
     return (
-        <div className="container" style={{ display: 'grid', gap: 12 }}>
-            <h2 className="inria-serif-bold" style={{ marginBottom: 8 }}>
-                Edit post
-            </h2>
+        <div className="compose-veil" onClick={onVeilClick}>
+            <section
+                className="compose-card"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <header className="compose-head">
+                    <h2 className="compose-title inria-serif-bold">
+                        Edit Post
+                    </h2>
+                </header>
 
-            <label className="auth-label">Title</label>
-            <input
-                className="auth-input"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                disabled={!canEditContent}
-                placeholder="Title"
-            />
-
-            <label className="auth-label">Text</label>
-            <textarea
-                className="auth-input"
-                rows={10}
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                disabled={!canEditContent}
-                placeholder="Write your text…"
-            />
-
-            <label className="auth-label">Image</label>
-            {imageUrl ? (
-                <div style={{ display: 'grid', gap: 8 }}>
-                    <img
-                        src={assetUrl(imageUrl) || imageUrl}
-                        alt=""
-                        style={{
-                            maxWidth: 360,
-                            maxHeight: 240,
-                            objectFit: 'cover',
-                            borderRadius: 6,
-                            border: '1px solid var(--line)',
-                        }}
-                        onError={(e) =>
-                            (e.currentTarget.style.display = 'none')
-                        }
-                    />
-                    <div style={{ display: 'flex', gap: 8 }}>
-                        <button
-                            className="mini-btn"
-                            type="button"
-                            disabled={uploading || !canEditContent}
-                            onClick={pickReplaceImage}
+                <div className="compose-body">
+                    {error && (
+                        <div
+                            className="auth-error"
+                            style={{ marginBottom: 10 }}
                         >
-                            {uploading ? 'Uploading…' : 'Replace image'}
-                        </button>
-                        <button
-                            className="mini-btn"
-                            type="button"
+                            {error}
+                        </div>
+                    )}
+
+                    {/* Автор + inline title */}
+                    <div className="author-row">
+                        <img
+                            className="author-ava"
+                            src={
+                                assetUrl(auth?.user?.profile_picture) ||
+                                '/placeholder-avatar.png'
+                            }
+                            alt=""
+                            onError={(e) =>
+                                (e.currentTarget.src =
+                                    '/placeholder-avatar.png')
+                            }
+                        />
+                        <span className="author-name">
+                            @{auth?.user?.login || 'me'}
+                        </span>
+                        <span className="author-sep">›</span>
+                        <input
+                            className="title-inline inria-serif-regular"
+                            placeholder="Edit Title..."
+                            value={title}
+                            onChange={(e) => setTitle(e.target.value)}
+                            maxLength={200}
                             disabled={!canEditContent}
-                            onClick={() => setImageUrl('')}
-                            style={{ color: '#9a1c1c' }}
+                        />
+                    </div>
+
+                    {/* Описание */}
+                    <textarea
+                        className="desc-area inria-serif-regular"
+                        placeholder="Update Description..."
+                        value={text}
+                        onChange={(e) => setText(e.target.value)}
+                        disabled={!canEditContent}
+                    />
+
+                    {/* Uploader + превью */}
+                    <div className="uploader">
+                        <label
+                            className="upload-btn -icon"
+                            onClick={() => openPicker('add')}
                         >
-                            Remove image
-                        </button>
+                            <img
+                                className="upload-ico"
+                                src={uploadIconUrl}
+                                alt=""
+                            />
+                            <span className="inria-serif-regular">
+                                {uploading ? 'Uploading…' : 'Upload images'}
+                            </span>
+                        </label>
+
+                        {!!images.length && (
+                            <div className="img-previews">
+                                {images.map((u, i) => (
+                                    <div key={i} className="thumb">
+                                        <img src={assetUrl(u) || u} alt="" />
+                                        <button
+                                            type="button"
+                                            className="thumb-del"
+                                            onClick={() => removeImageAt(i)}
+                                            title="Remove"
+                                        >
+                                            ×
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="thumb-repl"
+                                            onClick={() =>
+                                                openPicker('replace', i)
+                                            }
+                                            title="Replace"
+                                            disabled={uploading}
+                                        >
+                                            ⇄
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* скрытый picker */}
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        style={{ display: 'none' }}
+                        onChange={onFilesPicked}
+                    />
+
+                    {/* Категории + выбранные */}
+                    <div className="nizz">
+                        <div className="cats-picker">
+                            <div className="cats-line">
+                                <button
+                                    ref={catsBtnRef}
+                                    className="cats-toggle"
+                                    onClick={() => setCatsOpen((v) => !v)}
+                                >
+                                    Choose Categories{' '}
+                                    <span
+                                        className={`arrow ${
+                                            catsOpen ? 'open' : ''
+                                        }`}
+                                    />
+                                </button>
+
+                                <div className="cats-selected">
+                                    {catIds.map((id) => {
+                                        const c = allCats.find(
+                                            (x) => +x.id === +id
+                                        );
+                                        const label =
+                                            c?.name ?? c?.title ?? `#${id}`;
+                                        return (
+                                            <span
+                                                key={id}
+                                                className="sel-chip"
+                                                title={label}
+                                            >
+                                                {label}
+                                                <button
+                                                    className="x"
+                                                    onClick={() =>
+                                                        toggleCat(id)
+                                                    }
+                                                    aria-label="Remove"
+                                                >
+                                                    ×
+                                                </button>
+                                            </span>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {catsOpen && (
+                                <div ref={catsPopRef} className="cats-ribbon">
+                                    <button
+                                        className="ribbon-close"
+                                        onClick={() => setCatsOpen(false)}
+                                        aria-label="Close"
+                                    >
+                                        ×
+                                    </button>
+                                    <div
+                                        ref={scrollRef}
+                                        className="cats-scroller"
+                                    >
+                                        {allCats.length ? (
+                                            allCats.map((c) => {
+                                                const id = +c.id;
+                                                const on = catIds.includes(id);
+                                                return (
+                                                    <button
+                                                        key={id}
+                                                        type="button"
+                                                        className={`chip-scroll ${
+                                                            on ? 'is-on' : ''
+                                                        }`}
+                                                        onClick={() =>
+                                                            toggleCat(id)
+                                                        }
+                                                        title={
+                                                            c.description ||
+                                                            c.desc ||
+                                                            c.about ||
+                                                            ''
+                                                        }
+                                                    >
+                                                        {c.name ??
+                                                            c.title ??
+                                                            `#${id}`}
+                                                    </button>
+                                                );
+                                            })
+                                        ) : (
+                                            <div
+                                                className="auth-muted"
+                                                style={{ padding: 8 }}
+                                            >
+                                                No categories
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* футер: статус (для админа) + кнопки */}
+                        {/* футер: статус (для админа) + кнопки */}
+                        <div className="compose-footer two">
+                            {canChangeStatus ? (
+                                <div
+                                    className="status-ctl"
+                                    role="radiogroup"
+                                    aria-label="Post status"
+                                >
+                                    <button
+                                        type="button"
+                                        role="radio"
+                                        aria-checked={status === 'active'}
+                                        className={`chip-scroll ${
+                                            status === 'active' ? 'is-on' : ''
+                                        }`}
+                                        onClick={() => setStatus('active')}
+                                        title="Make active"
+                                    >
+                                        <span className="status-dot on" />
+                                        Active
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        role="radio"
+                                        aria-checked={status === 'inactive'}
+                                        className={`chip-scroll ${
+                                            status === 'inactive' ? 'is-on' : ''
+                                        }`}
+                                        onClick={() => setStatus('inactive')}
+                                        title="Make inactive"
+                                    >
+                                        <span className="status-dot off" />
+                                        Inactive
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="grow" />
+                            )}
+
+                            <button className="ghost-btn" onClick={onCancel}>
+                                Cancel
+                            </button>
+                            <button
+                                className="save-btn inria-serif-bold"
+                                onClick={onSave}
+                                disabled={saving || uploading}
+                            >
+                                {saving ? 'Saving…' : 'Save'}
+                            </button>
+                        </div>
                     </div>
                 </div>
-            ) : (
-                <div>
-                    <button
-                        className="mini-btn"
-                        type="button"
-                        disabled={uploading || !canEditContent}
-                        onClick={pickAddImage}
-                    >
-                        {uploading ? 'Uploading…' : '+ Add image'}
-                    </button>
-                </div>
-            )}
-            <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                style={{ display: 'none' }}
-            />
-
-            <label className="auth-label">Categories</label>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {allCats.map((c) => {
-                    const cid = +c.id;
-                    const checked = catIds.includes(cid);
-                    return (
-                        <label
-                            key={cid}
-                            style={{
-                                border: '1px solid var(--line)',
-                                borderRadius: 999,
-                                padding: '4px 10px',
-                                opacity: canEditCategories ? 1 : 0.6,
-                            }}
-                        >
-                            <input
-                                type="checkbox"
-                                checked={checked}
-                                disabled={!canEditCategories}
-                                onChange={() => toggleCat(cid)}
-                                style={{ marginRight: 6 }}
-                            />
-                            {c.title || c.name}
-                        </label>
-                    );
-                })}
-            </div>
-
-            {canChangeStatus && (
-                <>
-                    <label className="auth-label">Status</label>
-                    <select
-                        className="auth-input"
-                        value={status}
-                        onChange={(e) => setStatus(e.target.value)}
-                    >
-                        <option value="active">active</option>
-                        <option value="inactive">inactive</option>
-                    </select>
-                </>
-            )}
-
-            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                <button className="mini-btn" onClick={onCancel}>
-                    Cancel
-                </button>
-                <button className="mini-btn" onClick={onSave} disabled={saving}>
-                    {saving ? 'Saving…' : 'Save'}
-                </button>
-            </div>
+            </section>
         </div>
     );
 }
