@@ -47,6 +47,7 @@ export default function PostCard({
 }) {
     const {
         id,
+        author_id,
         title,
         author_login,
         author_name,
@@ -61,6 +62,7 @@ export default function PostCard({
     } = post;
 
     const displayAuthor = author_login || author_name || 'unknown';
+    const authorId = Number(author_id || post?.author?.id || 0);
 
     // дата
     const date = created_at ? formatPostDate(created_at) : '';
@@ -127,7 +129,21 @@ export default function PostCard({
                     />
                 </button>
             </div>
-            <div className="post-author">
+            <div
+                className="post-author js-stop"
+                role="button"
+                tabIndex={0}
+                onClick={(e) => {
+                    e.stopPropagation();
+                    authorId && navigate(`/profile/${authorId}`);
+                }}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.stopPropagation();
+                        authorId && navigate(`/profile/${authorId}`);
+                    }
+                }}
+            >
                 <img
                     className="post-avatar"
                     src={assetUrl(author_avatar) || '/placeholder-avatar.png'}

@@ -54,12 +54,15 @@ export const UserController = {
         }
 
         const password_hash = await hashPassword(password);
+        const email_verified = req.user?.role === 'admin' ? 1 : 0;
+
         const user = await Users.create({
             login,
             password_hash,
             full_name,
             email,
             role,
+            email_verified,
         });
 
         return res.status(201).json(user);

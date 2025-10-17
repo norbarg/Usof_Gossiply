@@ -9,6 +9,7 @@ import AuthBackground from '../shared/components/AuthBackground';
 import DarkVeil from '../shared/components/DarkVeil';
 import WelcomeOverlay from '../shared/components/WelcomeOverlay';
 import { AnimatePresence } from 'motion/react';
+import AdminApp from '../features/admin/AdminApp';
 import '../shared/styles/DarkVeil.css';
 import '../shared/styles/auth.css';
 
@@ -42,6 +43,10 @@ export default function App() {
         }
         prevUserRef.current = user;
     }, [user]);
+
+    if (path === '/admin' || path.startsWith('/admin/')) {
+        return <AdminApp />;
+    }
 
     const hideHeader = isAuthPath(path);
 

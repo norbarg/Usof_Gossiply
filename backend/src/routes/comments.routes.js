@@ -1,8 +1,19 @@
 import { Router } from 'express';
 import { CommentController } from '../controllers/CommentController.js';
-import { authRequired, attachUserIfAny } from '../middleware/auth.js';
+import {
+    authRequired,
+    attachUserIfAny,
+    requireRole,
+} from '../middleware/auth.js';
 
 const r = Router();
+
+r.get(
+    '/admin',
+    authRequired,
+    requireRole('admin'),
+    CommentController.adminList
+);
 r.get('/:comment_id', attachUserIfAny, CommentController.getById);
 r.get('/:comment_id/like', attachUserIfAny, CommentController.likeList);
 r.post('/:comment_id/like', authRequired, CommentController.likeCreate); //corrected

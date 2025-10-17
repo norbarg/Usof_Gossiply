@@ -970,7 +970,17 @@ export default function PostDetails() {
                 <div className="post-divider" />
 
                 {/* автор и мета */}
-                <div className="author-row-post">
+                <div
+                    className="author-row-post"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => authorId && navigate(`/profile/${authorId}`)}
+                    onKeyDown={(e) =>
+                        (e.key === 'Enter' || e.key === ' ') &&
+                        authorId &&
+                        navigate(`/profile/${authorId}`)
+                    }
+                >
                     <img
                         src={authorAvatar || '/placeholder-avatar.png'}
                         onError={(e) =>
@@ -1173,6 +1183,10 @@ function CommentNode(props) {
                 <img
                     className="c-ava"
                     src={cAva}
+                    onClick={() =>
+                        node.author_id && navigate(`/profile/${node.author_id}`)
+                    }
+                    style={{ cursor: 'pointer' }}
                     onError={(e) =>
                         (e.currentTarget.src = '/placeholder-avatar.png')
                     }
@@ -1184,7 +1198,15 @@ function CommentNode(props) {
                     {/* header: name + status; kebab сидит в правой колонке */}
                     <div className="c-head">
                         <div className="c-author">
-                            <b>{cName}</b>
+                            <button
+                                className="link-plain"
+                                onClick={() =>
+                                    node.author_id &&
+                                    navigate(`/profile/${node.author_id}`)
+                                }
+                            >
+                                @{cName}
+                            </button>
                             {status && (
                                 <span
                                     className={`c-status ${

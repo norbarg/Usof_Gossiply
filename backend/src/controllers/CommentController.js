@@ -4,6 +4,17 @@ import { Posts } from '../models/PostModel.js';
 import { Likes } from '../models/LikeModel.js';
 import { pool } from '../config/db.js';
 
+function normalizeUploadPath(s) {
+    if (!s) return s;
+    let u = String(s).trim().replace(/\\/g, '/');
+    u = u.replace(/^\/api(\/|$)/i, '/');
+    u = u.replace(/^(\/)?uploads(?=[^/])/i, '/uploads/');
+    u = u.replace(/^\/?uploads\/+/i, '/uploads/');
+    if (/^uploads\//i.test(u)) u = '/' + u;
+    u = u.replace(/^\/uploads\/avatars(?=\d)/i, '/uploads/avatars/');
+    return u;
+}
+
 export const CommentController = {
     async getById(req, res) {
         const id = +req.params.comment_id;
@@ -163,7 +174,72 @@ export const CommentController = {
         const updated = await Comments.updateById(id, data);
         res.json(updated);
     },
+    async adminList(req, res) {
+        const page = Math.max(1, Number(req.query.page) || 1);
+        const limit = Math.max(1, Math.min(200, Number(req.query.limit) || 30));
+        const offset = (page - 1) * limit;
 
+        const q = String(req.query.q || '').trim();
+        const status = String(req.query.status || 'all');
+
+        const where = [];
+        const params = {};
+
+        if (status === 'active' || status === 'inactive') {
+            where.push('c.status = :status');
+            params.status = status;
+        }
+        if (q) {
+            where.push(
+                '(c.content LIKE :q OR u.login LIKE :q OR u.email LIKE :q)'
+            );
+            params.q = `%${q}%`;
+        }
+
+        const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+        const orderSql = 'ORDER BY c.publish_date DESC, c.id DESC';
+
+        const [rows] = await pool.query(
+            `SELECT
+       c.id, c.post_id, c.author_id, c.content, c.status, c.parent_id,
+       c.publish_date AS created_at,
+       COALESCE((SELECT COUNT(*) FROM likes l WHERE l.comment_id=c.id AND l.type='like'),0)    AS likes_up_count,
+       COALESCE((SELECT COUNT(*) FROM likes l WHERE l.comment_id=c.id AND l.type='dislike'),0) AS likes_down_count,
+       u.login AS author_login,
+       u.full_name AS author_name,
+       u.profile_picture AS author_avatar
+     FROM comments c
+     JOIN users u ON u.id = c.author_id
+     ${whereSql}
+     ${orderSql}
+     LIMIT :limit OFFSET :offset`,
+            { ...params, limit, offset }
+        );
+
+        const [[countRow]] = await pool.query(
+            `SELECT COUNT(*) AS total
+     FROM comments c
+     JOIN users u ON u.id = c.author_id
+     ${whereSql}`,
+            params
+        );
+
+        const items = rows.map((r) => ({
+            ...r,
+            author_avatar: normalizeUploadPath(r.author_avatar),
+            likes_up_count: Number(r.likes_up_count || 0),
+            likes_down_count: Number(r.likes_down_count || 0),
+        }));
+
+        const total = Number(countRow?.total || 0);
+        res.json({
+            items,
+            total,
+            page,
+            limit,
+            pages: Math.ceil(total / limit),
+        });
+    },
     async remove(req, res) {
         const id = +req.params.comment_id;
         const c = await Comments.findById(id);

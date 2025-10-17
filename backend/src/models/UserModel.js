@@ -12,11 +12,20 @@ export class UserModel extends BaseModel {
         email,
         role = 'user',
         profile_picture = env.DEFAULT_AVATAR,
+        email_verified = 0, // ← новое поле, дефолт 0
     }) {
         const rows = await this.query(
-            `INSERT INTO users (login, password_hash, full_name, email, role, profile_picture) 
-       VALUES (:login, :password_hash, :full_name, :email, :role, :profile_picture)`,
-            { login, password_hash, full_name, email, role, profile_picture }
+            `INSERT INTO users (login, password_hash, full_name, email, role, profile_picture, email_verified)
+       VALUES (:login, :password_hash, :full_name, :email, :role, :profile_picture, :email_verified)`,
+            {
+                login,
+                password_hash,
+                full_name,
+                email,
+                role,
+                profile_picture,
+                email_verified,
+            }
         );
         return {
             id: rows.insertId,
@@ -25,6 +34,7 @@ export class UserModel extends BaseModel {
             email,
             role,
             profile_picture,
+            email_verified, // ← вернём флаг
         };
     }
     async findByLoginOrEmail(loginOrEmail) {

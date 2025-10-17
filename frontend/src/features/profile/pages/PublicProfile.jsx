@@ -1,14 +1,11 @@
-// frontend/src/features/profile/pages/Profile.jsx
-import React, { useEffect, useMemo, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { navigate } from '../../../shared/router/helpers';
-import { logout, setUser } from '../../auth/authActions';
+// frontend/src/features/profile/pages/PublicProfile.jsx
+import React, { useEffect, useState } from 'react';
+import { matchPath, parsePath } from '../../../shared/router/helpers';
 import api from '../../../shared/api/axios';
 import { assetUrl } from '../../../shared/utils/assetUrl';
 import PostCard from '../../posts/components/PostCard';
 import MetaBalls from '../../../shared/components/MetaBalls';
 import starUrl from '/icons/star.png';
-import plusIconUrl from '/icons/plus-circle-on.png';
 import '../../../shared/styles/fonts.css';
 import '../../../shared/styles/profile.css';
 
@@ -26,132 +23,92 @@ function fmtDate(value) {
     }
 }
 
-export default function Profile() {
-    const dispatch = useDispatch();
-    const { user, token } = useSelector((s) => s.auth);
-    const favIds = useSelector((s) => s.posts?.favoriteIds || []);
+export default function PublicProfile() {
+    const path = parsePath();
+    const m = matchPath('/profile/:id', path);
+    const userId = Number(m?.id || 0);
 
+    const [user, setUser] = useState(null);
     const [stats, setStats] = useState({
         posts: null,
         favorites: null,
         rating: null,
     });
-    const [myPosts, setMyPosts] = useState([]);
-    const [myLoading, setMyLoading] = useState(false);
-    const [myError, setMyError] = useState('');
-    const [myMeta, setMyMeta] = useState({ page: 1, limit: 20, total: 0 });
+    const [posts, setPosts] = useState([]);
+    const [meta, setMeta] = useState({ page: 1, limit: 20, total: 0 });
+    const [loading, setLoading] = useState(true);
+    const [err, setErr] = useState('');
 
-    useEffect(() => {
-        if (!token) navigate('/login');
-    }, [token]);
-
-    useEffect(() => {
-        if (!user?.id) return;
-        (async () => {
-            try {
-                const { data } = await api.get(`/users/${user.id}`);
-                if (data) dispatch(setUser(data));
-            } catch {}
-        })();
-    }, [user?.id, dispatch]);
-
+    // загрузка юзера
     useEffect(() => {
         let stop = false;
         (async () => {
+            setLoading(true);
+            setErr('');
             try {
-                const { data } = await api
-                    .get('/users/me/stats')
-                    .catch(async () => {
-                        if (!user?.id) throw new Error('no user');
-                        return await api.get(`/users/${user.id}/stats`);
-                    });
-                if (!stop && data) {
-                    setStats({
-                        posts: Number(
-                            data.posts ??
-                                data.posts_count ??
-                                data.total_posts ??
-                                0
-                        ),
-                        favorites: Number(
-                            data.favorites ??
-                                data.favorites_count ??
-                                favIds.length
-                        ),
-                        rating: Number(
-                            data.rating ??
-                                data.reputation ??
-                                data.score ??
-                                user?.rating ??
-                                NaN
-                        ),
-                    });
-                }
-            } catch {
-                setStats((s) => ({ ...s, favorites: favIds.length }));
+                const { data } = await api.get(`/users/${userId}`);
+                if (!stop) setUser(data || null);
+            } catch (e) {
+                if (!stop) setErr(e?.response?.data?.error || 'User not found');
+            } finally {
+                if (!stop) setLoading(false);
             }
         })();
         return () => {
             stop = true;
         };
-    }, [user?.id, favIds.length]);
+    }, [userId]);
 
-    const ratingDisplay = useMemo(() => {
-        const s = Number.isFinite(stats.rating) ? stats.rating : null;
-        const u = Number.isFinite(user?.rating) ? user.rating : null;
-        return s ?? u ?? '—';
-    }, [stats.rating, user?.rating]);
-
-    async function fetchMyPosts({ page = 1, append = false } = {}) {
-        if (!user?.id) return;
-        const limit = myMeta.limit || 20;
-        setMyLoading(true);
-        setMyError('');
-        try {
-            let resp;
+    // статистика
+    useEffect(() => {
+        if (!userId) return;
+        let stop = false;
+        (async () => {
             try {
-                resp = await api.get('/users/me/posts', {
-                    params: {
-                        page,
-                        limit,
-                        sortBy: 'date_desc',
-                        sort: 'date_desc',
-                        order_by: 'created_at',
-                        order: 'desc',
-                        include_inactive: 1,
-                        any_status: 1,
-                        per_page: limit,
-                        offset: (page - 1) * limit,
-                    },
-                });
-            } catch {
-                resp = await api.get('/posts', {
-                    params: {
-                        page,
-                        limit,
-                        per_page: limit,
-                        offset: (page - 1) * limit,
-                        skip: (page - 1) * limit,
-                        take: limit,
-                        author_id: user.id,
-                        user_id: user.id,
-                        my: 1,
-                        sortBy: 'date_desc',
-                        sort: 'date_desc',
-                        order_by: 'created_at',
-                        order: 'desc',
-                        include_inactive: 1,
-                        any_status: 1,
-                    },
-                });
-            }
+                const { data } = await api.get(`/users/${userId}/stats`);
+                if (!stop && data) {
+                    setStats({
+                        posts: Number(data.posts ?? data.total_posts ?? 0),
+                        favorites: Number(
+                            data.favorites ?? data.favorites_count ?? 0
+                        ),
+                        rating: Number(
+                            data.rating ?? data.reputation ?? data.score ?? NaN
+                        ),
+                    });
+                }
+            } catch {}
+        })();
+        return () => {
+            stop = true;
+        };
+    }, [userId]);
+
+    // посты автора
+    async function fetchPosts({ page = 1, append = false } = {}) {
+        if (!userId) return;
+        const limit = meta.limit || 20;
+        try {
+            const resp = await api.get('/posts', {
+                params: {
+                    page,
+                    limit,
+                    author_id: userId,
+                    sortBy: 'date_desc',
+                    order_by: 'created_at',
+                    order: 'desc',
+                    per_page: limit,
+                    offset: (page - 1) * limit,
+                },
+            });
             const { data, headers } = resp;
+
             let items, total;
             if (Array.isArray(data)) {
                 items = data;
                 total =
                     Number(headers?.['x-total-count']) ||
-                    (append ? myMeta.total : items.length);
+                    (append ? meta.total : items.length);
             } else if (data?.items) {
                 items = data.items;
                 total = Number(
@@ -169,37 +126,45 @@ export default function Profile() {
                 items = data?.rows || data?.list || [];
                 total = Number(data?.total ?? data?.count ?? items.length);
             }
+
             items = (items || []).slice().sort((a, b) => {
                 const ta = new Date(a.created_at || a.createdAt || 0).getTime();
                 const tb = new Date(b.created_at || b.createdAt || 0).getTime();
                 return tb - ta;
             });
-            setMyPosts((prev) => {
+
+            setPosts((prev) => {
                 const next = append ? [...prev, ...items] : items;
                 const map = new Map();
                 for (const p of next) if (p?.id != null) map.set(p.id, p);
                 return Array.from(map.values());
             });
-            setMyMeta({ page, limit, total });
+            setMeta({ page, limit, total });
         } catch (e) {
-            setMyError(e?.response?.data?.error || 'Failed to load your posts');
-        } finally {
-            setMyLoading(false);
+            setErr(e?.response?.data?.error || 'Failed to load posts');
         }
     }
 
     useEffect(() => {
-        setMyPosts([]);
-        setMyMeta((m) => ({ ...m, page: 1, total: 0 }));
-        if (user?.id) fetchMyPosts({ page: 1, append: false });
+        setPosts([]);
+        setMeta((m) => ({ ...m, page: 1, total: 0 }));
+        if (userId) fetchPosts({ page: 1, append: false });
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [user?.id]);
+    }, [userId]);
 
-    const hasMore = myPosts.length < (myMeta.total || 0);
+    const hasMore = posts.length < (meta.total || 0);
     const loadMore = () =>
-        fetchMyPosts({ page: (myMeta.page || 1) + 1, append: true });
+        fetchPosts({ page: (meta.page || 1) + 1, append: true });
 
-    if (!user) {
+    if (!userId)
+        return (
+            <div className="container">
+                <div className="auth-error" style={{ marginTop: 12 }}>
+                    Invalid user
+                </div>
+            </div>
+        );
+    if (loading && !user)
         return (
             <div className="container">
                 <div className="auth-muted" style={{ marginTop: 12 }}>
@@ -207,15 +172,29 @@ export default function Profile() {
                 </div>
             </div>
         );
-    }
+    if (err && !user)
+        return (
+            <div className="container">
+                <div className="auth-error" style={{ marginTop: 12 }}>
+                    {err}
+                </div>
+            </div>
+        );
+    if (!user) return null;
 
     const name = user.full_name || user.login;
     const joined = fmtDate(user.created_at);
     const role = user.role || 'user';
+    const ratingDisplay = (() => {
+        const s = Number.isFinite(stats.rating) ? stats.rating : null;
+        const u = Number.isFinite(user?.rating) ? user?.rating : null;
+        return s ?? u ?? '—';
+    })();
+
     const postsCountDisplay =
         Number.isFinite(stats.posts) && stats.posts !== null
             ? stats.posts
-            : myMeta.total || myPosts.length || '—';
+            : meta.total || posts.length || '—';
 
     const nameRows = Array.from({ length: 7 }, () => name);
 
@@ -226,7 +205,6 @@ export default function Profile() {
 
                 {/* ЛЕВАЯ КОЛОНКА */}
                 <aside>
-                    {/* шапка: аватар слева, имя-узор справа */}
                     <div className="left-head">
                         <div className="profile-avatar-wrap big">
                             <img
@@ -243,7 +221,6 @@ export default function Profile() {
                             />
                         </div>
 
-                        {/* колонка с повторяющимся именем */}
                         <div className="name-stack">
                             <div className="name-bg-multi" aria-hidden>
                                 {nameRows.map((t, i) => (
@@ -267,16 +244,8 @@ export default function Profile() {
                             <div className="profile-login">@{user.login}</div>
                             <div className="profile-role-chip">{role}</div>
                         </div>
-                        {user.email && (
-                            <div className="profile-meta__row">
-                                <span>Email</span>
-                                <b>
-                                    <a href={`mailto:${user.email}`}>
-                                        {user.email}
-                                    </a>
-                                </b>
-                            </div>
-                        )}
+
+                        {/* email лучше не показывать публично; если нужно — верни этот блок */}
                         {joined && (
                             <div className="profile-meta__row">
                                 <span>joined</span>
@@ -296,32 +265,8 @@ export default function Profile() {
                         </div>
                     </div>
 
-                    {/* только две кнопки и обе НЕ ghost */}
-                    <div className="profile-actions row">
-                        <button
-                            className="btn violet inria-serif-bold"
-                            onClick={() => navigate('/profile/edit')}
-                        >
-                            Edit profile
-                        </button>
-                        <button
-                            className="btn violet inria-serif-bold"
-                            onClick={async () => {
-                                await dispatch(logout());
-                                try {
-                                    sessionStorage.removeItem('justLoggedIn');
-                                } catch {}
-                                try {
-                                    window.history.replaceState({}, '', '/');
-                                } catch {}
-                                navigate('/login');
-                            }}
-                        >
-                            Log out
-                        </button>
-                    </div>
+                    {/* БЕЗ кнопок Edit/Logout — как просили */}
 
-                    {/* прямоугольник с MetaBalls */}
                     <div className="profile-blob-card">
                         <MetaBalls
                             className="blob"
@@ -341,44 +286,29 @@ export default function Profile() {
                 <div className="profile-vline" aria-hidden />
 
                 {/* ПРАВАЯ КОЛОНКА */}
-                <main className=" glam-main">
+                <main className="glam-main">
                     <div className="main-topbar">
                         <div className="counters-inline">
                             <span>
                                 Posts: <b>{postsCountDisplay}</b>
                             </span>
                             <span>
-                                Favorite:{' '}
-                                <b>{stats.favorites ?? favIds.length}</b>
+                                Favorite: <b>{Number(stats.favorites ?? 0)}</b>
                             </span>
                         </div>
-                        <button
-                            className="create-btn"
-                            onClick={() => navigate('/posts/new')}
-                            aria-label="Create post"
-                            title="Create post"
-                        >
-                            <img
-                                src={plusIconUrl}
-                                alt=""
-                                className="create-icon"
-                            />
-                        </button>
+                        {/* БЕЗ кнопки Create post */}
                     </div>
 
-                    <h3 className="profile-section-title">My Posts</h3>
+                    <h3 className="profile-section-title">Posts</h3>
 
-                    {myError && (
+                    {err && (
                         <div className="auth-error" style={{ margin: '8px 0' }}>
-                            {myError}
+                            {err}
                         </div>
-                    )}
-                    {myLoading && myPosts.length === 0 && (
-                        <div className="auth-muted">Loading…</div>
                     )}
 
                     <div className="post-grid">
-                        {myPosts.map((p) => (
+                        {posts.map((p) => (
                             <PostCard
                                 key={p.id}
                                 post={p}
@@ -388,20 +318,24 @@ export default function Profile() {
                     </div>
 
                     <div style={{ margin: '12px 0', textAlign: 'center' }}>
-                        {myLoading && myPosts.length > 0 && (
+                        {loading && posts.length === 0 && (
                             <div className="auth-muted">Loading…</div>
                         )}
-                        {!myLoading && hasMore && (
-                            <button className="btn ghost" onClick={loadMore}>
-                                Load more
-                            </button>
-                        )}
-                        {!myLoading && !hasMore && myPosts.length > 0 && (
-                            <div className="auth-muted">That’s all</div>
-                        )}
-                        {!myLoading && myPosts.length === 0 && !myError && (
+                        {!loading && posts.length === 0 && !err && (
                             <div className="auth-muted">No posts yet.</div>
                         )}
+                        {!loading &&
+                            posts.length > 0 &&
+                            (hasMore ? (
+                                <button
+                                    className="btn ghost"
+                                    onClick={loadMore}
+                                >
+                                    Load more
+                                </button>
+                            ) : (
+                                <div className="auth-muted">That’s all</div>
+                            ))}
                     </div>
                 </main>
             </section>

@@ -12,16 +12,18 @@ import Profile from '../features/profile/pages/Profile.jsx';
 import ProfileEdit from '../features/profile/pages/ProfileEdit.jsx';
 import PostNew from '../features/posts/pages/PostNew.jsx';
 import PostEdit from '../features/posts/pages/PostEdit.jsx';
+import PublicProfile from '../features/profile/pages/PublicProfile.jsx';
 
 const routes = [
     { path: '/', component: PostList },
     { path: '/posts/new', component: PostNew },
+    { path: '/posts/:id/edit', component: PostEdit },
     { path: '/posts/:id', component: PostDetails },
     { path: '/categories', component: CategoriesList },
     { path: '/favorites', component: FavoritesList },
-    { path: '/posts/:id/edit', component: PostEdit },
-    { path: '/profile', component: Profile },
     { path: '/profile/edit', component: ProfileEdit },
+    { path: '/profile/:id', component: PublicProfile },
+    { path: '/profile', component: Profile },
     { path: '/login', component: Login },
     { path: '/register', component: Register },
     { path: '/password-reset', component: ResetPassword },
