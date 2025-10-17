@@ -85,61 +85,98 @@ export default function PublicProfile() {
     }, [userId]);
 
     // посты автора
+    // посты автора
     async function fetchPosts({ page = 1, append = false } = {}) {
         if (!userId) return;
         const limit = meta.limit || 20;
+
         try {
-            const resp = await api.get('/posts', {
-                params: {
-                    page,
-                    limit,
-                    author_id: userId,
-                    sortBy: 'date_desc',
-                    order_by: 'created_at',
-                    order: 'desc',
-                    per_page: limit,
-                    offset: (page - 1) * limit,
-                },
-            });
+            const params = {
+                page,
+                limit,
+                // разные алиасы, которые могли быть у бэка
+                author_id: userId,
+                authorId: userId,
+                author: userId,
+                user_id: userId,
+                userId: userId,
+                by: userId,
+                owner_id: userId,
+                ownerId: userId,
+                only_author: 1,
+                // типичные пагинационные алиасы на всякий:
+                per_page: limit,
+                offset: (page - 1) * limit,
+                skip: (page - 1) * limit,
+                take: limit,
+                // желательно видеть только активные в публичном профиле:
+                status: 'active',
+            };
+
+            const resp = await api.get('/posts', { params });
             const { data, headers } = resp;
 
-            let items, total;
+            let items, totalFromServer;
+
             if (Array.isArray(data)) {
                 items = data;
-                total =
-                    Number(headers?.['x-total-count']) ||
-                    (append ? meta.total : items.length);
+                totalFromServer = Number(headers?.['x-total-count']);
             } else if (data?.items) {
                 items = data.items;
-                total = Number(
-                    data.total ?? data.count ?? data.meta?.total ?? items.length
+                totalFromServer = Number(
+                    data.total ?? data.count ?? data.meta?.total
                 );
             } else if (data?.results) {
                 items = data.results;
-                total = Number(data.count ?? data.total ?? items.length);
+                totalFromServer = Number(data.count ?? data.total);
             } else if (data?.data && data?.meta) {
                 items = data.data;
-                total = Number(
-                    data.meta.total ?? data.meta.count ?? items.length
-                );
+                totalFromServer = Number(data.meta.total ?? data.meta.count);
             } else {
                 items = data?.rows || data?.list || [];
-                total = Number(data?.total ?? data?.count ?? items.length);
+                totalFromServer = Number(data?.total ?? data?.count);
             }
 
-            items = (items || []).slice().sort((a, b) => {
+            // 🔒 ЖЁСТКО фильтруем клиентом по author_id (и возможным полям)
+            const filtered = (items || []).filter((p) => {
+                const aid = Number(
+                    p.author_id ??
+                        p.user_id ??
+                        p.authorId ??
+                        p.userId ??
+                        p.author?.id ??
+                        p.user?.id
+                );
+                return Number.isFinite(aid) && aid === userId;
+            });
+
+            // сортировка по дате (на всякий)
+            filtered.sort((a, b) => {
                 const ta = new Date(a.created_at || a.createdAt || 0).getTime();
                 const tb = new Date(b.created_at || b.createdAt || 0).getTime();
                 return tb - ta;
             });
 
             setPosts((prev) => {
-                const next = append ? [...prev, ...items] : items;
+                const next = append ? [...prev, ...filtered] : filtered;
+                // уникализируем по id
                 const map = new Map();
                 for (const p of next) if (p?.id != null) map.set(p.id, p);
                 return Array.from(map.values());
             });
-            setMeta({ page, limit, total });
+
+            // Если сервер дал «общий» total, он может быть некорректен для автора.
+            // Пытаемся взять более точный, если есть; иначе — считаем по факту.
+            const totalAuthor = Number(
+                data?.author_total ?? data?.author_posts_total ?? NaN
+            );
+            const nextTotal = Number.isFinite(totalAuthor)
+                ? totalAuthor
+                : append
+                ? meta.total
+                : filtered.length;
+
+            setMeta({ page, limit, total: nextTotal });
         } catch (e) {
             setErr(e?.response?.data?.error || 'Failed to load posts');
         }

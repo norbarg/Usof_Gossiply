@@ -2,7 +2,7 @@ USE usof_db;
 
 -- =========================
 -- USERS (idempotent upsert)
--- пароль у всех: "password123"
+-- password: "password123"
 -- =========================
 INSERT INTO users (login, password_hash, full_name, email, email_verified, role)
 VALUES
@@ -53,66 +53,72 @@ SET @c_algo = (SELECT id FROM categories WHERE title='Scandals and dramas');
 -- Post 1 (alice)
 INSERT INTO posts (author_id, title, content, status, publish_date)
 SELECT @u_alice,
-       'How to debounce input in React?',
+       'Kimberly Kardashian’s new skincare line allegedly smells like fries',
        JSON_ARRAY(
-         JSON_OBJECT('type','text','text','I need to debounce search input in React. Any best practices?'),
+         JSON_OBJECT('type','text','text','The influencer mogul’s latest beauty drop, Glow Eat Repeat, has sparked unexpected reviews: “works fine, but why does it smell like a McDonald’s bag?” Reddit threads are exploding with theories — from “fry oil extract” to “marketing genius.”
+Kimber’s team released a statement claiming the scent is “an intentional comfort aroma.” Meanwhile, TikTokers are using it as perfume and calling it “the most realistic fast-food aura ever.”
+We live in strange, delicious times. 🍟'),
          JSON_OBJECT('type','image','url','https://picsum.photos/800/300','alt','react ui','caption','Example UI')
        ),
        'active', NOW()
-WHERE NOT EXISTS (SELECT 1 FROM posts WHERE title='How to debounce input in React?');
+WHERE NOT EXISTS (SELECT 1 FROM posts WHERE title='Kimberly Kardashian’s new skincare line allegedly smells like fries');
 
 -- Post 2 (bob)
 INSERT INTO posts (author_id, title, content, status, publish_date)
 SELECT @u_bob,
-       'Optimize MySQL query with JOINs',
+       'Leonardo Dicaprio arrives at film premiere with a date aged 26 — internet shocked he’s ‘experimenting older’',
        JSON_ARRAY(
-         JSON_OBJECT('type','text','text','My JOIN-heavy query is slow. How can I optimize it?')
+         JSON_OBJECT('type','text','text','Fans were stunned when Leonardo Dicaprio appeared at the Venice Film Festival red carpet holding hands with a 26-year-old model. “He’s entering his mature phase,” one comment reads. Another says: “this is basically retirement age for him.”
+The actor laughed off questions, saying, “I’m just here for the cinema.” Sources claim he whispered “and the catering” right after.
+Cultural analysts call it a “watershed moment for men in their 40s pretending to be 29.”')
        ),
        'active', NOW()
-WHERE NOT EXISTS (SELECT 1 FROM posts WHERE title='Optimize MySQL query with JOINs');
+WHERE NOT EXISTS (SELECT 1 FROM posts WHERE title='Leonardo Dicaprio arrives at film premiere with a date aged 26 — internet shocked he’s ‘experimenting older’');
 
 -- Post 3 (carol)
 INSERT INTO posts (author_id, title, content, status, publish_date)
 SELECT @u_carol,
-       'Node.js best practices',
+       'Taylor Swift spotted eating something mysterious — fans call it her ‘chaos era snack',
        JSON_ARRAY(
-         JSON_OBJECT('type','text','text','What are must-know patterns and best practices for Node.js services?')
+         JSON_OBJECT('type','text','text','Witnesses at a Nashville café claim they saw Tayla Swift “experimenting with an unusual snack” during a late-night writing session. According to one fan, “it looked… suspiciously brown.” Another swears it was just vegan protein pudding, but the debate is raging online.
+TikTok has already spawned a viral trend called #SwiftSnackChallenge, where fans recreate bizarre meals “to summon inspiration.” Tayla’s team has declined to comment — fueling the chaos even more.')
        ),
        'active', NOW()
-WHERE NOT EXISTS (SELECT 1 FROM posts WHERE title='Node.js best practices');
+WHERE NOT EXISTS (SELECT 1 FROM posts WHERE title='Taylor Swift spotted eating something mysterious — fans call it her ‘chaos era snack');
 
 -- Post 4 (dave, INACTIVE)
 INSERT INTO posts (author_id, title, content, status, publish_date)
 SELECT @u_dave,
-       'CSS Grid vs Flexbox',
+       'Kanye West announces engagement — to himself',
        JSON_ARRAY(
-         JSON_OBJECT('type','text','text','When should I prefer CSS Grid over Flexbox and vice versa?')
+         JSON_OBJECT('type','text','text','Rapper and designer Kanye West posted a photo of his hand with two identical diamond rings, captioned: “I said yes (twice).” Fans are calling it the most on-brand move of 2025. Sources say the wedding theme will be “minimalist narcissism” with a mirror aisle and solo vows.')
        ),
        'inactive', NOW()
-WHERE NOT EXISTS (SELECT 1 FROM posts WHERE title='CSS Grid vs Flexbox');
+WHERE NOT EXISTS (SELECT 1 FROM posts WHERE title='Kanye West announces engagement — to himself');
 
 -- Post 5 (alice)
 INSERT INTO posts (author_id, title, content, status, publish_date)
 SELECT @u_alice,
-       'Binary search edge cases',
+       'Ariana Grande spotted kissing random strangers ‘for research’',
        JSON_ARRAY(
-         JSON_OBJECT('type','text','text','What are common off-by-one mistakes in binary search implementations?')
+         JSON_OBJECT('type','text','text','Witnesses in downtown L.A. claim Ariana Grande kissed three homeless persons within ten minutes, allegedly saying it was “for a method-acting role about empathy.” One fan reports: “She asked if I recycle and then kissed me goodbye.”
+Her PR later clarified: “Ariana is exploring the boundaries of human connection.” Twitter: “Girl, that’s not sociology, that’s saliva.”')
        ),
        'active', NOW()
-WHERE NOT EXISTS (SELECT 1 FROM posts WHERE title='Binary search edge cases');
+WHERE NOT EXISTS (SELECT 1 FROM posts WHERE title='Ariana Grande spotted kissing random strangers ‘for research’');
 
-SET @p1 = (SELECT id FROM posts WHERE title='How to debounce input in React?');
-SET @p2 = (SELECT id FROM posts WHERE title='Optimize MySQL query with JOINs');
-SET @p3 = (SELECT id FROM posts WHERE title='Node.js best practices');
-SET @p4 = (SELECT id FROM posts WHERE title='CSS Grid vs Flexbox');
-SET @p5 = (SELECT id FROM posts WHERE title='Binary search edge cases');
+SET @p1 = (SELECT id FROM posts WHERE title='Kimberly Kardashian’s new skincare line allegedly smells like fries');
+SET @p2 = (SELECT id FROM posts WHERE title='Leonardo Dicaprio arrives at film premiere with a date aged 26 — internet shocked he’s ‘experimenting older’');
+SET @p3 = (SELECT id FROM posts WHERE title='Taylor Swift spotted eating something mysterious — fans call it her ‘chaos era snack’');
+SET @p4 = (SELECT id FROM posts WHERE title='Kanye West announces engagement — to himself');
+SET @p5 = (SELECT id FROM posts WHERE title='Ariana Grande spotted kissing random strangers ‘for research’');
 
 -- =======================
 -- POST <-> CATEGORIES
 -- =======================
 INSERT IGNORE INTO post_categories (post_id, category_id) VALUES
-  (@p1, @c_js), (@p1, @c_node),
-  (@p2, @c_db),
+  (@p1, c_algo), (@p1, @c_js),
+  (@p2, @c_node),
   (@p3, @c_node),
   (@p4, @c_css),
   (@p5, @c_algo);
@@ -121,23 +127,23 @@ INSERT IGNORE INTO post_categories (post_id, category_id) VALUES
 -- COMMENTS
 -- ==========
 INSERT INTO comments (post_id, author_id, content, publish_date, status)
-SELECT @p1, @u_bob,   'Use lodash.debounce or a custom hook that wraps setTimeout/clearTimeout.', NOW(), 'active'
-WHERE NOT EXISTS (SELECT 1 FROM comments WHERE post_id=@p1 AND author_id=@u_bob AND content LIKE 'Use lodash.debounce%');
+SELECT @p1, @u_bob,   'OMG', NOW(), 'active'
+WHERE NOT EXISTS (SELECT 1 FROM comments WHERE post_id=@p1 AND author_id=@u_bob AND content LIKE 'OMG');
 
 INSERT INTO comments (post_id, author_id, content, publish_date, status)
-SELECT @p1, @u_carol, 'Consider React''s useDeferredValue for smoother UX when typing.', NOW(), 'active'
-WHERE NOT EXISTS (SELECT 1 FROM comments WHERE post_id=@p1 AND author_id=@u_carol AND content LIKE 'Consider React%');
+SELECT @p1, @u_carol, 'No way!', NOW(), 'active'
+WHERE NOT EXISTS (SELECT 1 FROM comments WHERE post_id=@p1 AND author_id=@u_carol AND content LIKE 'No way!');
 
 INSERT INTO comments (post_id, author_id, content, publish_date, status)
-SELECT @p2, @u_alice, 'Add proper indexes and run EXPLAIN; check rows examined and ref columns.', NOW(), 'active'
+SELECT @p2, @u_alice, 'Holy cow', NOW(), 'active'
 WHERE NOT EXISTS (SELECT 1 FROM comments WHERE post_id=@p2 AND author_id=@u_alice);
 
 INSERT INTO comments (post_id, author_id, content, publish_date, status)
-SELECT @p3, @u_dave,  'Take a look at nodebestpractices repository for a great checklist.', NOW(), 'active'
+SELECT @p3, @u_dave,  'I love it.', NOW(), 'active'
 WHERE NOT EXISTS (SELECT 1 FROM comments WHERE post_id=@p3 AND author_id=@u_dave);
 
 INSERT INTO comments (post_id, author_id, content, publish_date, status)
-SELECT @p5, @u_bob, 'Edge case: when low > high — make sure your loop terminates.', NOW(), 'inactive'
+SELECT @p5, @u_bob, 'I know it.', NOW(), 'inactive'
 WHERE NOT EXISTS (SELECT 1 FROM comments WHERE post_id=@p5 AND author_id=@u_bob AND status='inactive');
 
 SET @c_inactive = (SELECT id FROM comments WHERE post_id=@p5 AND author_id=@u_bob LIMIT 1);
