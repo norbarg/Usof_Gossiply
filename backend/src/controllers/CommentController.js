@@ -3,6 +3,7 @@ import { Comments } from '../models/CommentModel.js';
 import { Posts } from '../models/PostModel.js';
 import { Likes } from '../models/LikeModel.js';
 import { pool } from '../config/db.js';
+import { broadcastCommentEvent } from '../utils/commentsStream.js';
 
 function normalizeUploadPath(s) {
     if (!s) return s;
@@ -78,6 +79,8 @@ export const CommentController = {
         } catch (e) {
             console.warn('updateUserRating failed:', e);
         }
+        const counters = await getReactionsCounters(id);
+        broadcastCommentEvent(c.post_id, { type: 'reaction', id, ...counters });
 
         return res.status(200).json({ message: 'OK', comment_id: id, type });
     },
@@ -100,6 +103,15 @@ export const CommentController = {
             if (c) await updateUserRating(c.author_id);
         } catch (e) {
             console.warn('updateUserRating after delete failed:', e);
+        }
+        const c = await Comments.findById(id);
+        if (c) {
+            const counters = await getReactionsCounters(id);
+            broadcastCommentEvent(c.post_id, {
+                type: 'reaction',
+                id,
+                ...counters,
+            });
         }
         return res.status(200).json({ message: 'OK' });
     },
@@ -144,6 +156,7 @@ export const CommentController = {
         });
         const full = await Comments.findByIdWithAuthor(comment.id);
         res.status(201).json(full);
+        broadcastCommentEvent(post_id, { type: 'created', comment: full });
     },
     async update(req, res) {
         const id = +req.params.comment_id;
@@ -173,6 +186,18 @@ export const CommentController = {
 
         const updated = await Comments.updateById(id, data);
         res.json(updated);
+        if ('status' in data) {
+            broadcastCommentEvent(updated.post_id, {
+                type: 'status',
+                id,
+                status: updated.status,
+            });
+        } else if ('content' in data) {
+            broadcastCommentEvent(updated.post_id, {
+                type: 'updated',
+                comment: updated,
+            });
+        }
     },
     async adminList(req, res) {
         const page = Math.max(1, Number(req.query.page) || 1);
@@ -240,6 +265,7 @@ export const CommentController = {
             pages: Math.ceil(total / limit),
         });
     },
+
     async remove(req, res) {
         const id = +req.params.comment_id;
         const c = await Comments.findById(id);
@@ -251,6 +277,7 @@ export const CommentController = {
         }
         await Comments.deleteById(id);
         res.json({ message: 'Comment deleted' });
+        broadcastCommentEvent(c.post_id, { type: 'deleted', id });
     },
 };
 
@@ -285,4 +312,18 @@ async function updateUserRating(user_id) {
         rating,
         user_id,
     });
+}
+async function getReactionsCounters(comment_id) {
+    const [[up]] = await pool.query(
+        `SELECT COUNT(*) AS c FROM likes WHERE comment_id=:id AND type='like'`,
+        { id: comment_id }
+    );
+    const [[down]] = await pool.query(
+        `SELECT COUNT(*) AS c FROM likes WHERE comment_id=:id AND type='dislike'`,
+        { id: comment_id }
+    );
+    return {
+        likes_up_count: Number(up?.c || 0),
+        likes_down_count: Number(down?.c || 0),
+    };
 }

@@ -9,6 +9,7 @@ import {
 } from '../middleware/auth.js';
 import { upload } from '../middleware/upload.js';
 import { FavoriteController } from '../controllers/FavoriteController.js';
+import { subscribeToComments } from '../utils/commentsStream.js';
 
 const r = Router();
 
@@ -37,6 +38,26 @@ r.get('/:post_id/comments', attachUserIfAny, PostController.listComments);
 r.get('/:post_id', attachUserIfAny, PostController.getById); //corrected
 r.get('/:post_id/categories', PostController.listCategories); //corrected
 r.get('/:post_id/like', PostController.likeList); //corrected
+r.get('/:post_id/comments/stream', (req, res) => {
+    const postId = String(req.params.post_id);
+
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders?.();
+
+    // перший "hello", щоб клієнт зрозумів, що з'єднання ок
+    res.write(`event: hello\ndata: {"ok":true}\n\n`);
+
+    const unsubscribe = subscribeToComments(postId, res);
+    const ping = setInterval(() => res.write(':\n\n'), 25000); // keep-alive
+
+    req.on('close', () => {
+        clearInterval(ping);
+        unsubscribe();
+        res.end();
+    });
+});
 
 r.post('/', authRequired, PostController.create); //corrected
 r.post('/:post_id/comments', authRequired, CommentController.createUnderPost); //corrected

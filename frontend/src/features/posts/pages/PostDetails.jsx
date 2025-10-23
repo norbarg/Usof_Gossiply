@@ -574,6 +574,101 @@ export default function PostDetails() {
         })();
     }, [post?.id]);
 
+    useEffect(() => {
+        if (!post?.id) return;
+
+        // будуємо абсолютний/відносний URL з урахуванням axios baseURL
+        const base = (api?.defaults?.baseURL || '').replace(/\/+$/, ''); // напр., "/api"
+        const streamUrl = `${base}/posts/${post.id}/comments/stream`;
+
+        const es = new EventSource(streamUrl);
+
+        es.addEventListener('hello', () => {
+            /* no-op */
+        });
+
+        es.onmessage = (e) => {
+            try {
+                const msg = JSON.parse(e.data);
+                switch (msg?.type) {
+                    case 'created': {
+                        const cm = msg.comment;
+                        if (!cm) break;
+                        setComments((prev) =>
+                            prev.some((x) => x.id === cm.id)
+                                ? prev
+                                : [...prev, cm]
+                        );
+                        break;
+                    }
+                    case 'updated': {
+                        const cm = msg.comment;
+                        if (!cm) break;
+                        setComments((prev) =>
+                            prev.map((x) =>
+                                x.id === cm.id ? { ...x, ...cm } : x
+                            )
+                        );
+                        break;
+                    }
+                    case 'deleted': {
+                        const id = msg.id;
+                        if (!id) break;
+                        // прибираємо вузол + однорівневих дітей (у тебе є removeSubtreeLocal; тут — спрощено)
+                        setComments((prev) =>
+                            prev.filter(
+                                (c) => c.id !== id && c.parent_id !== id
+                            )
+                        );
+                        break;
+                    }
+                    case 'status': {
+                        const { id, status } = msg;
+                        if (!id) break;
+                        setComments((prev) =>
+                            prev.map((x) =>
+                                x.id === id ? { ...x, status } : x
+                            )
+                        );
+                        break;
+                    }
+                    case 'reaction': {
+                        const { id, likes_up_count, likes_down_count } = msg;
+                        if (!id) break;
+                        setComments((prev) =>
+                            prev.map((x) =>
+                                x.id === id
+                                    ? {
+                                          ...x,
+                                          likes_up_count: Number(
+                                              likes_up_count ??
+                                                  x.likes_up_count ??
+                                                  0
+                                          ),
+                                          likes_down_count: Number(
+                                              likes_down_count ??
+                                                  x.likes_down_count ??
+                                                  0
+                                          ),
+                                      }
+                                    : x
+                            )
+                        );
+                        break;
+                    }
+                    default:
+                        break;
+                }
+            } catch (_) {}
+        };
+
+        es.onerror = () => {
+            /* браузер сам реконектиться; можна ігнорити */
+        };
+
+        return () => es.close();
+    }, [post?.id]);
+
     const openReply = (cid) => {
         setReplyOpenFor(cid);
         setReplyText('');
@@ -636,6 +731,7 @@ export default function PostDetails() {
             return prev.filter((c) => !toDel.has(c.id));
         });
     const setBusy = (id, v) => setBusyById((p) => ({ ...p, [id]: v }));
+    const isBusy = (id) => !!busyById[id];
 
     // ====== EDIT ======
     const startEdit = (c) => {
@@ -1315,13 +1411,13 @@ function CommentNode(props) {
                             onClick={() => onLike(node.id)}
                             className={`c-action ${isLiked ? 'is-on' : ''}`}
                             aria-pressed={isLiked}
-                            disabled={!isActive}
+                            disabled={!isActive || busy}
                             title="Like"
                         >
                             <img
                                 className="ico"
                                 src={
-                                    node.my_reaction === 'like' || node.liked
+                                    isLiked
                                         ? '/icons/com-like-on.png'
                                         : '/icons/com-like-off.png'
                                 }
@@ -1340,8 +1436,7 @@ function CommentNode(props) {
                             <img
                                 className="ico"
                                 src={
-                                    node.my_reaction === 'dislike' ||
-                                    node.disliked
+                                    isDisliked
                                         ? '/icons/com-dislike-on.png'
                                         : '/icons/com-dislike-off.png'
                                 }
