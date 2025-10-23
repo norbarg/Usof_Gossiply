@@ -1,6 +1,3 @@
-/* src/shared/styles/fonts.css */
-
-/* Глобальный дефолт (по желанию): */
 :root {
     --font-inria: 'Inria Serif', serif;
 }
@@ -11,7 +8,6 @@ body,
     font-family: var(--font-inria);
 }
 
-/* Классы по весам/начертаниям */
 .inria-serif-light {
     font-family: 'Inria Serif', serif;
     font-weight: 300;
@@ -44,7 +40,6 @@ body,
     font-style: italic;
 }
 
-/* Небольшой бонус: сглаживание */
 body {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;

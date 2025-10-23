@@ -16,14 +16,12 @@ export default function ResetPassword() {
     const [newPass, setNewPass] = useState('');
     const [info, setInfo] = useState('');
 
-    // >>> авто-скрытие глобальной ошибки через 3с
     useEffect(() => {
         if (!error) return;
         const t = setTimeout(() => dispatch(clearError()), 3000);
         return () => clearTimeout(t);
     }, [error, dispatch]);
 
-    // >>> авто-скрытие локального инфо через 3с
     useEffect(() => {
         if (!info) return;
         const t = setTimeout(() => setInfo(''), 3000);
@@ -52,7 +50,6 @@ export default function ResetPassword() {
 
     return (
         <div className="auth-card">
-            {/* HEADER */}
             <div className="auth-header">
                 <img
                     src="/src/assets/logo.png"
@@ -65,10 +62,8 @@ export default function ResetPassword() {
                 <div />
             </div>
 
-            {/* BODY */}
             <div className="auth-card__body">
                 <div className="auth-body3">
-                    {/* Back слева */}
                     <div className="auth-body3__left">
                         <button
                             type="button"
@@ -79,9 +74,7 @@ export default function ResetPassword() {
                         </button>
                     </div>
 
-                    {/* Центр */}
                     <div className="auth-body3__center">
-                        {/* Запросить токен */}
                         <form className="auth-form" onSubmit={askToken}>
                             <input
                                 className="auth-input inria-serif-regular"
@@ -113,10 +106,8 @@ export default function ResetPassword() {
                             </div>
                         </form>
 
-                        {/* Разделитель */}
                         <hr className="auth-sep-line" />
 
-                        {/* Ввести токен и новый пароль */}
                         <form className="auth-form" onSubmit={doReset}>
                             <input
                                 className="auth-input inria-serif-regular"
@@ -162,7 +153,6 @@ export default function ResetPassword() {
                         </form>
                     </div>
 
-                    {/* Правый спейсер */}
                     <div className="auth-body3__right" />
                 </div>
             </div>

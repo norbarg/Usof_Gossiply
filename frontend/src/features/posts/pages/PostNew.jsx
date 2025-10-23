@@ -1,4 +1,3 @@
-// frontend/src/features/posts/pages/PostNew.jsx
 import React, {
     useEffect,
     useMemo,
@@ -28,7 +27,6 @@ export default function PostNew() {
     const [categoryIds, setCategoryIds] = useState([]);
     const [catsOpen, setCatsOpen] = useState(false);
 
-    // для поповера категорий
     const catsBtnRef = useRef(null);
     const catsPopRef = useRef(null);
     const scrollRef = useRef(null);
@@ -51,7 +49,6 @@ export default function PostNew() {
             document.removeEventListener('keydown', onEsc);
         };
     }, [catsOpen]);
-    // изображения
     const [files, setFiles] = useState([]);
     const [previews, setPreviews] = useState([]);
 
@@ -81,7 +78,6 @@ export default function PostNew() {
         };
     }, []);
 
-    // блокируем скролл под модалкой
     useEffect(() => {
         const prev = document.body.style.overflow;
         document.body.style.overflow = 'hidden';
@@ -92,8 +88,8 @@ export default function PostNew() {
 
     const valid = useMemo(() => {
         const tOK = title.trim().length >= 3;
-        const hasText = content.trim().length >= 1; // описание необязательно длинное
-        const hasMedia = files.length > 0; // или есть картинки
+        const hasText = content.trim().length >= 1;
+        const hasMedia = files.length > 0;
         return tOK && (hasText || hasMedia);
     }, [title, content, files.length]);
 
@@ -119,7 +115,6 @@ export default function PostNew() {
         setFiles((prev) => prev.filter((_, i) => i !== idx));
 
     const onSubmit = async () => {
-        // ← всегда публикуем как active
         if (!valid || loading) return;
         setLoading(true);
         setError('');
@@ -130,11 +125,10 @@ export default function PostNew() {
                     title: title.trim(),
                     contentBlocks: blocks,
                     categories: categoryIds,
-                    desiredStatus: 'active', // ← фиксировано
+                    desiredStatus: 'active',
                 })
             );
 
-            // загрузка картинок по очереди
             if (files.length) {
                 const urls = [];
                 for (const f of files) {
@@ -186,19 +180,16 @@ export default function PostNew() {
         return () => document.removeEventListener('keydown', onKeyDown);
     }, [onKeyDown]);
 
-    // закрытие по клику по подложке
     const onVeilClick = (e) => {
         if (e.target === e.currentTarget) navigate(-1);
     };
 
-    // когда открыт поповер — конвертируем вертикальное колесо в горизонтальный скролл
     useEffect(() => {
         if (!catsOpen) return;
         const scroller = scrollRef.current;
         if (!scroller) return;
 
         const onWheel = (e) => {
-            // если крутим вертикально — скроллим по X и блокируем прокрутку фона
             if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
                 e.preventDefault();
                 scroller.scrollLeft += e.deltaY;
@@ -229,7 +220,6 @@ export default function PostNew() {
                         </div>
                     )}
 
-                    {/* строка автора + инлайн title */}
                     <div className="author-row">
                         <img
                             className="author-ava"
@@ -256,7 +246,6 @@ export default function PostNew() {
                         />
                     </div>
 
-                    {/* описание — фикс. ширина/высота */}
                     <textarea
                         className="desc-area inria-serif-regular"
                         placeholder="Enter Description..."
@@ -264,7 +253,6 @@ export default function PostNew() {
                         onChange={(e) => setContent(e.target.value)}
                     />
 
-                    {/* загрузка изображений — с иконкой */}
                     <div className="uploader">
                         <label className="upload-btn -icon">
                             <input
@@ -303,7 +291,6 @@ export default function PostNew() {
                     </div>
 
                     <div className="nizz">
-                        {/* категории — лента-поповер + выбранные рядом с кнопкой */}
                         <div className="cats-picker">
                             <div className="cats-line">
                                 <button
@@ -319,7 +306,6 @@ export default function PostNew() {
                                     />
                                 </button>
 
-                                {/* выбранные категории рядом с кнопкой */}
                                 <div className="cats-selected">
                                     {categoryIds.map((id) => {
                                         const c = cats.find(
@@ -416,7 +402,6 @@ export default function PostNew() {
                             )}
                         </div>
 
-                        {/* футер — оставляем только Publish */}
                         <div className="compose-footer single">
                             <div className="grow" />
                             <button

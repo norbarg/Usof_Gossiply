@@ -1,4 +1,3 @@
-// backend/src/controllers/CommentController.js
 import { Comments } from '../models/CommentModel.js';
 import { Posts } from '../models/PostModel.js';
 import { Likes } from '../models/LikeModel.js';
@@ -35,7 +34,6 @@ export const CommentController = {
         const likes = await Likes.listForComment(id);
         res.json(likes);
     },
-    // backend/src/controllers/CommentController.js
     async likeCreate(req, res) {
         const id = Number(req.params.comment_id);
         const { type = 'like' } = req.body || {};
@@ -61,7 +59,6 @@ export const CommentController = {
         }
 
         try {
-            // Атомарно: вставит или переключит тип, без предварительного SELECT
             await pool.query(
                 `INSERT INTO likes (author_id, comment_id, type)
        VALUES (:aid, :cid, :type)
@@ -73,7 +70,6 @@ export const CommentController = {
             return res.status(500).json({ error: 'Failed to save reaction' });
         }
 
-        // Пересчёт рейтинга — best-effort, не ломаем основной ответ
         try {
             await updateUserRating(c.author_id);
         } catch (e) {
@@ -126,7 +122,6 @@ export const CommentController = {
         const { content, parent_id } = req.body;
         if (!content)
             return res.status(400).json({ error: 'content required' });
-        // if it's a reply, validate parent
         let parent = null;
         if (parent_id != null) {
             const pid = +parent_id;

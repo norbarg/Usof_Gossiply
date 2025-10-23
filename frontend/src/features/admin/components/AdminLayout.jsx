@@ -57,7 +57,6 @@ export default function AdminLayout({ children }) {
                 </nav>
             </aside>
 
-            {/* единственный скроллер */}
             <main className="admin-main" data-scroller>
                 <div className="admin-topbar">
                     <button

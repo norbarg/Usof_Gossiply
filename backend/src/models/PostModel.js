@@ -1,19 +1,13 @@
-// backend/src/models/PostModel.js
 import { BaseModel } from './BaseModel.js';
 import { env } from '../config/env.js';
 
 function normalizeUploadPath(s) {
     if (!s) return s;
     let u = String(s).trim().replace(/\\/g, '/');
-    // убираем возможный /api
     u = u.replace(/^\/api(\/|$)/i, '/');
-    // "/uploadsavatars..." -> "/uploads/avatars..."
     u = u.replace(/^(\/)?uploads(?=[^/])/i, '/uploads/');
-    // "uploads//avatars" -> "/uploads/avatars"
     u = u.replace(/^\/?uploads\/+/i, '/uploads/');
-    // если начинается с "uploads/..." — добавим ведущий слэш
     if (/^uploads\//i.test(u)) u = '/' + u;
-    // "/uploads/avatars123.jpg" -> "/uploads/avatars/123.jpg"
     u = u.replace(/^\/uploads\/avatars(?=\d)/i, '/uploads/avatars/');
     return u;
 }
@@ -42,7 +36,7 @@ export class PostModel extends BaseModel {
         status,
         author_id,
         category_ids,
-        sortBy = 'likes', // 'likes' | 'date'
+        sortBy = 'likes',
         date_from,
         date_to,
         q,
@@ -53,12 +47,6 @@ export class PostModel extends BaseModel {
         const params = { limit: +limit, offset: +offset };
         if (viewer_id) params.viewer_id = +viewer_id;
 
-        // === ВИДИМОСТЬ и СТАТУС ===
-        // include_all=true (админ): уважать явный status, иначе ничего не ограничиваем.
-        // include_all=false (обычный):
-        //   - status='active' -> только активные
-        //   - status='inactive' -> только Мои неактивные
-        //   - status='all' или пусто -> активные + (мои неактивные, если viewer_id)
         if (include_all) {
             if (status === 'active' || status === 'inactive') {
                 where.push(`p.status = :status`);
@@ -68,18 +56,15 @@ export class PostModel extends BaseModel {
             if (status === 'active') {
                 where.push(`p.status = 'active'`);
             } else if (status === 'inactive') {
-                // показываем только свои неактивные
                 if (viewer_id) {
                     where.push(
                         `p.status = 'inactive' AND p.author_id = :viewer_id`
                     );
                     params.viewer_id = viewer_id;
                 } else {
-                    // неавторизованный — НИЧЕГО (пустая выборка)
                     where.push(`1 = 0`);
                 }
             } else {
-                // '', 'all' или не задано
                 if (viewer_id) {
                     where.push(
                         `(p.status = 'active' OR (p.status='inactive' AND p.author_id = :viewer_id))`
@@ -98,7 +83,6 @@ export class PostModel extends BaseModel {
             );
         }
 
-        // фильтры
         if (author_id) {
             where.push(`p.author_id = :author_id`);
             params.author_id = author_id;
@@ -138,7 +122,7 @@ export class PostModel extends BaseModel {
                     return `${likesExpr} DESC`;
 
                 default:
-                    return `${likesExpr} DESC`; // по умолчанию — самые залайканные
+                    return `${likesExpr} DESC`;
             }
         })();
 
@@ -191,7 +175,6 @@ export class PostModel extends BaseModel {
 
         const rows = await this.query(sql, params);
 
-        // post-processing: categories[], plain/excerpt из JSON-контента
         return rows.map((r) => {
             const categories = r.categories_csv
                 ? r.categories_csv.split(',').filter(Boolean)
@@ -219,13 +202,12 @@ export class PostModel extends BaseModel {
                 categories,
                 content_plain: plain,
                 excerpt,
-                liked: false, // фронт дальше управляет оптимистично
+                liked: false,
                 favorited: !!r.favorited,
             };
         });
     }
 
-    // === NEW: считаем total под теми же фильтрами, что и list ===
     async count({
         status,
         author_id,
@@ -302,7 +284,6 @@ export class PostModel extends BaseModel {
         return Number(rows[0]?.total ?? 0);
     }
 
-    // backend/src/models/PostModel.js
     async findByIdWithFavorited(id, viewer_id = 0) {
         const likesExpr = `COALESCE((
     SELECT SUM(CASE WHEN l.type='like' THEN 1 WHEN l.type='dislike' THEN -1 ELSE 0 END)
@@ -364,11 +345,9 @@ export class PostModel extends BaseModel {
         const r = rows[0];
         if (!r) return null;
 
-        // --- контент: строка с JSON -> массив блоков; HTML оставляем как строку
         let content = r.content;
 
         try {
-            // распарсим если это JSON (строка)
             let v = content;
             if (
                 typeof v === 'string' &&
@@ -377,7 +356,6 @@ export class PostModel extends BaseModel {
                 v = JSON.parse(v);
             }
 
-            // поддержка и формата [ ... ], и { blocks:[ ... ] }
             let blocks = Array.isArray(v)
                 ? v
                 : v && Array.isArray(v.blocks)
@@ -385,21 +363,18 @@ export class PostModel extends BaseModel {
                 : null;
 
             if (blocks) {
-                // Н О Р М А Л И З А Ц И Я  Т И П О В
                 content = blocks.map((b) => {
                     if (!b) return b;
                     const t = String(b.type || '').toLowerCase();
 
-                    // приводим к тем типам, которые умеет фронт
                     let type = t;
                     if (t === 'text' || t === 'paragraph') type = 'p';
                     if (t === 'image' || t === 'photo' || t === 'img')
                         type = 'img';
 
-                    // единый ключ для картинки
                     let url = b.url || b.src || b.path || '';
                     if (type === 'img' && url) {
-                        url = normalizeUploadPath(url); // относительные /uploads/... поправим
+                        url = normalizeUploadPath(url);
                     }
 
                     const out = { ...b, type };
@@ -407,10 +382,7 @@ export class PostModel extends BaseModel {
                     return out;
                 });
             }
-            // иначе оставим как есть (вдруг это чистый HTML)
-        } catch (_) {
-            /* оставим как есть */
-        }
+        } catch (_) {}
 
         const author_avatar = normalizeUploadPath(r.author_avatar);
         const categories = r.categories_csv

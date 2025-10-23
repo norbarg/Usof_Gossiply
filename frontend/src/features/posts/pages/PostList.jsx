@@ -1,4 +1,3 @@
-// frontend/src/features/posts/pages/PostList.jsx
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
@@ -87,8 +86,8 @@ export default function PostList() {
         date_to: getDateToUrl(),
         status: getStatusFromUrl(),
     });
-    const restoreOnceRef = useRef(false); // чтобы восстановить скролл ровно один раз
-    const savedYRef = useRef(null); // здесь держим сохранённое значение до восстановления
+    const restoreOnceRef = useRef(false);
+    const savedYRef = useRef(null);
     const initialMountRef = useRef(true);
 
     useEffect(() => {
@@ -108,7 +107,6 @@ export default function PostList() {
     useEffect(() => {
         return () => {
             try {
-                // если мы уходим на страницу поста — замок стоит, НИЧЕГО не трогаем
                 const locked = sessionStorage.getItem('feedLock') === '1';
                 if (!locked) {
                     const y = getScrollTop();
@@ -133,7 +131,6 @@ export default function PostList() {
             if (canScroll) setScrollTop(y);
             const now = Math.abs(getScrollTop() - y) <= 2;
             if (now || tries >= 60) {
-                // до ~1 сек на RAF
                 restoreOnceRef.current = true;
                 savedYRef.current = null;
                 try {
@@ -147,7 +144,6 @@ export default function PostList() {
         requestAnimationFrame(tryRestore);
     }, [loading, items.length]);
 
-    // следим за изменением URL (когда поиск меняется из хедера)
     useEffect(() => {
         const off = onRouteChange(() => {
             const q = getQFromUrl();
@@ -172,7 +168,6 @@ export default function PostList() {
         return off;
     }, []);
 
-    // Пишем фильтры в URL без перезагрузки
     useEffect(() => {
         const usp = new URLSearchParams();
         if (filters.q) usp.set('q', filters.q);
@@ -184,9 +179,7 @@ export default function PostList() {
         if (filters.status) usp.set('status', filters.status);
         const nextUrl =
             location.pathname + (usp.toString() ? `?${usp.toString()}` : '');
-        // заменяем адресную строку (чтобы не плодить историю)
         if (nextUrl !== location.pathname + location.search) {
-            // обязательно сохраняем существующий state, иначе feedY потеряется
             const st = history.state || {};
             history.replaceState(st, '', nextUrl);
         }
@@ -197,8 +190,6 @@ export default function PostList() {
     }, [dispatch]);
 
     useEffect(() => {
-        // На самом первом маунте: если есть сохранённый скролл и в сторе уже есть элементы,
-        // не перезапрашиваем список (чтобы не мигало и не сбивалось восстановление).
         if (initialMountRef.current) {
             initialMountRef.current = false;
             const hasSaved = sessionStorage.getItem('feedScrollY') != null;
@@ -212,14 +203,11 @@ export default function PostList() {
     useEffect(() => {
         (async () => {
             try {
-                const { data } = await api.get('/categories'); // или твой реальный путь
-                // ожидаем [{id, name}]
+                const { data } = await api.get('/categories');
                 setCats(data.items ?? data.results ?? data.data ?? data);
             } catch {}
         })();
     }, []);
-
-    // === Infinite scroll ===
     const sentinelRef = useRef(null);
     const limit = meta.limit || 10;
     const total = meta.total || 0;
@@ -280,7 +268,7 @@ export default function PostList() {
                     })
                 }
                 categories={cats}
-                catIconOff={plusOff} // <- ваша иконка для НЕактивного
+                catIconOff={plusOff}
                 catIconOn={plusOn}
             />
 
@@ -304,10 +292,8 @@ export default function PostList() {
                 ))}
             </div>
 
-            {/* нижний «якорь» для IntersectionObserver */}
             <div ref={sentinelRef} style={{ height: 1 }} />
 
-            {/* индикатор загрузки и конец списка */}
             <div
                 style={{
                     margin: '12px 0',

@@ -1,4 +1,3 @@
-// frontend/src/features/categories/pages/CategoriesList.jsx
 import React, { useEffect, useState } from 'react';
 import api from '../../../shared/api/axios';
 import { navigate } from '../../../shared/router/helpers';

@@ -1,4 +1,3 @@
-// backend/src/controllers/AuthController.js
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { Users } from '../models/UserModel.js';
@@ -31,7 +30,6 @@ function renderVerifyPage({
     redirectTo = FRONTEND_ORIGIN,
     redirectMs = 4200,
 } = {}) {
-    // простая шумовая подложка (base64), чтобы не тянуть файлы
     const NOISE =
         'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIW2P4z8DwHwAF3gJ1c6CQLgAAAABJRU5ErkJggg==';
 
@@ -454,7 +452,6 @@ export const AuthController = {
             { uid: user.id, token, exp: expires_at }
         );
 
-        // Письмо с токеном (пользователь копирует и вставляет в форму)
         const subject = 'USOF — Password Reset Token';
         const html = `
     <h2>Password Reset</h2>
@@ -471,11 +468,9 @@ export const AuthController = {
         } catch (mailErr) {
             console.error('Mail send error:', mailErr);
             if (process.env.NODE_ENV !== 'development') {
-                return res
-                    .status(502)
-                    .json({
-                        error: 'Email service unavailable. Check SMTP credentials.',
-                    });
+                return res.status(502).json({
+                    error: 'Email service unavailable. Check SMTP credentials.',
+                });
             } else {
                 // DEV: подсказка для тестов
                 console.warn('DEV MODE: reset token =', token);

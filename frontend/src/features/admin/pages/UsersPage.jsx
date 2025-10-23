@@ -16,7 +16,6 @@ const fmt = (v) => {
     }).format(d);
 };
 
-// утилита сравнения для сортировки
 function cmp(a, b) {
     if (a == null && b == null) return 0;
     if (a == null) return -1;
@@ -34,8 +33,8 @@ function cmp(a, b) {
 }
 
 export default function UsersPage() {
-    const [allRows, setAllRows] = useState([]); // всё с сервера
-    const [rows, setRows] = useState([]); // текущая страница
+    const [allRows, setAllRows] = useState([]);
+    const [rows, setRows] = useState([]);
     const [q, setQ] = useState('');
     const [page, setPage] = useState(1);
     const [limit] = useState(20);
@@ -44,7 +43,6 @@ export default function UsersPage() {
     const [sortBy, setSortBy] = useState('id');
     const [sortDir, setSortDir] = useState('asc');
 
-    // форма создания пользователя
     const [creating, setCreating] = useState(false);
     const [newU, setNewU] = useState({
         login: '',
@@ -53,7 +51,6 @@ export default function UsersPage() {
         password: '',
         role: 'user',
     });
-    // full_name обязателен бэком, + нужен password_confirmation
     const canCreate =
         newU.login.trim() &&
         newU.email.trim() &&
@@ -64,7 +61,6 @@ export default function UsersPage() {
         setLoading(true);
         try {
             const params = {
-                // на случай, если бэк когда-нибудь добавит q/сортировку
                 q,
                 search: q,
                 query: q,
@@ -83,9 +79,8 @@ export default function UsersPage() {
 
     useEffect(() => {
         fetchRows();
-    }, []); // 1 запрос на маунт
+    }, []);
 
-    // клиентская фильтрация/сортировка/пагинация
     useEffect(() => {
         const lq = q.trim().toLowerCase();
         const filtered = lq
@@ -100,7 +95,6 @@ export default function UsersPage() {
               )
             : allRows;
 
-        // сортировка
         const sorted = [...filtered].sort((a, b) => {
             const av = a[sortBy],
                 bv = b[sortBy];
@@ -112,14 +106,13 @@ export default function UsersPage() {
         let safePage = page;
         const start = (safePage - 1) * limit;
         if (start >= nextTotal && safePage > 1) {
-            safePage = 1; // если ушли дальше последней страницы — вернуть на первую
+            safePage = 1;
         }
         const begin = (safePage - 1) * limit;
         const pageRows = sorted.slice(begin, begin + limit);
 
         setTotal(nextTotal);
         if (safePage !== page) {
-            // обновим страницу и отрисуем уже в следующем проходе
             setPage(safePage);
         } else {
             setRows(pageRows);
@@ -154,7 +147,7 @@ export default function UsersPage() {
                 email: newU.email.trim(),
                 full_name: newU.full_name.trim(),
                 password: newU.password,
-                password_confirmation: newU.password, // ← бек этого требует
+                password_confirmation: newU.password,
                 role: newU.role || 'user',
             };
             const { data } = await api.post('/users', body);
@@ -252,7 +245,6 @@ export default function UsersPage() {
                 />
             </div>
 
-            {/* создать пользователя */}
             <div className="admin-card" style={{ marginBottom: 10 }}>
                 <div
                     style={{

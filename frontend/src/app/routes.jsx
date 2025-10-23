@@ -1,4 +1,3 @@
-// frontend/src/app/routes.jsx
 import React, { useEffect, useMemo, useState } from 'react';
 import { onRouteChange, parsePath, matchPath } from '../shared/router/helpers';
 import Login from '../features/auth/pages/Login.jsx';

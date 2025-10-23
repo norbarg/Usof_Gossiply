@@ -1,13 +1,8 @@
-// МИНИ-РОУТЕР БЕЗ # (History API)
-
-// Переход на путь
 export function navigate(to, options = {}) {
-    // Число → history.go(N), чтобы работало navigate(-1)
     if (typeof to === 'number' && Number.isInteger(to)) {
         window.history.go(to);
         return;
     }
-    // Иначе — строковый путь
     let path = String(to ?? '/');
     if (!path.startsWith('/')) path = '/' + path;
     if (options.replace) {
@@ -15,7 +10,6 @@ export function navigate(to, options = {}) {
     } else {
         window.history.pushState({}, '', path);
     }
-    // уведомляем подписчиков
     window.dispatchEvent(new PopStateEvent('popstate'));
 }
 
@@ -25,19 +19,16 @@ export function back() {
 export function forward() {
     window.history.forward();
 }
-// Нормализация пути: только pathname, без query/hash и без хвостового /
 function cleanPath(p) {
     const onlyPath = (p || '').split('?')[0].split('#')[0] || '/';
     const noTrailing = onlyPath.replace(/\/+$/, '');
     return noTrailing || '/';
 }
 
-// Текущий путь (только pathname)
 export function parsePath() {
     return cleanPath(location.pathname);
 }
 
-// Подписка на изменения маршрута
 export function onRouteChange(cb) {
     const handler = () => cb(parsePath());
     window.addEventListener('popstate', handler);
@@ -48,9 +39,7 @@ export function onRouteChange(cb) {
     };
 }
 
-// Матчинг типа "/confirm-email/:token"
 export function matchPath(pattern, actual) {
-    // safety: игнорим query/hash и хвостовые слэши
     const pat = cleanPath(pattern);
     const act = cleanPath(actual);
 

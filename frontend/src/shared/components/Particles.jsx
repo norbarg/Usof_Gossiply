@@ -130,7 +130,6 @@ export default function Particles({
             container.addEventListener('mousemove', handleMouseMove);
         }
 
-        // buffers
         const count = particleCount;
         const positions = new Float32Array(count * 3);
         const randoms = new Float32Array(count * 4);

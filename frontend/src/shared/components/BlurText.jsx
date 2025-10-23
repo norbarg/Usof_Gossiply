@@ -45,7 +45,6 @@ const BlurText = ({
         );
         observer.observe(ref.current);
         return () => observer.disconnect();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [threshold, rootMargin]);
 
     const defaultFrom = useMemo(

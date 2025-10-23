@@ -1,4 +1,3 @@
-// Безпечне декодування payload із JWT (без верифікації, лише читання id/role)
 export function decodeJwt(token) {
     try {
         const base64Url = token.split('.')[1];

@@ -1,11 +1,10 @@
-// frontend/src/app/store.js
 import {
-    legacy_createStore as createStore, // на случай redux@5
+    legacy_createStore as createStore,
     applyMiddleware,
     combineReducers,
     compose,
 } from 'redux';
-import { thunk } from 'redux-thunk'; // ← именованный импорт!
+import { thunk } from 'redux-thunk';
 import { authReducer } from '../features/auth/authReducer';
 import { postsReducer } from '../features/posts/postsReducer';
 
@@ -21,5 +20,5 @@ const composeEnhancers =
 
 export const store = createStore(
     rootReducer,
-    composeEnhancers(applyMiddleware(thunk)) // ← используем переменную thunk
+    composeEnhancers(applyMiddleware(thunk))
 );

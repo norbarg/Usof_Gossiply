@@ -1,7 +1,5 @@
-// backend/src/models/FavoriteModel.js
 import { BaseModel } from './BaseModel.js';
 
-// тот же нормалайзер, что в PostModel (скопирован сюда)
 function normalizeUploadPath(s) {
     if (!s) return s;
     let u = String(s).trim().replace(/\\/g, '/');
@@ -90,7 +88,6 @@ export class FavoriteModel extends BaseModel {
             offset: +offset,
         });
 
-        // пост-процессинг: как в Posts.list
         return rows.map((r) => {
             const categories = r.categories_csv
                 ? r.categories_csv.split(',').filter(Boolean)

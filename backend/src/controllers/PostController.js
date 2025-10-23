@@ -1,4 +1,3 @@
-// backend/src/controllers/PostController.js
 import { Posts } from '../models/PostModel.js';
 import { Categories } from '../models/CategoryModel.js';
 import { Comments } from '../models/CommentModel.js';
@@ -8,7 +7,6 @@ import { pool } from '../config/db.js';
 export const PostController = {
     async list(req, res) {
         const { page = 1, limit = 10, status, date_from, date_to } = req.query;
-        // фронт может прислать sort или sortBy
         const q = (req.query.q || '').trim();
 
         const normStatus =
@@ -18,7 +16,6 @@ export const PostController = {
             req.query.sortBy ?? req.query.sort ?? ''
         ).toLowerCase();
 
-        // нормализуем в наш набор: likes_desc | likes_asc | date_desc | date_asc | (опц.) comments_desc
         const sortBy = (() => {
             switch (rawSort) {
                 case 'new':
@@ -42,7 +39,6 @@ export const PostController = {
             }
         })();
 
-        // категории: поддерживаем category_id и category_ids (массив / "1,2,3")
         let category_ids = [];
         if (Array.isArray(req.query.category_ids)) {
             category_ids = req.query.category_ids
@@ -59,7 +55,7 @@ export const PostController = {
         }
         const viewer_id = req.user?.id;
         const viewer_role = req.user?.role;
-        const include_all = viewer_role === 'admin'; // админ видит всё
+        const include_all = viewer_role === 'admin';
         const offset = (Math.max(1, +page) - 1) * +limit;
 
         const items = await Posts.list({
@@ -198,7 +194,6 @@ export const PostController = {
         const post_id = +req.params.post_id;
         const viewer_id = req.user?.id || 0;
 
-        // Админ видит все комментарии
         if (req.user?.role === 'admin') {
             const comments = await Comments.listByPost({
                 post_id,
@@ -208,7 +203,6 @@ export const PostController = {
             return res.json(comments);
         }
 
-        // Авторизованный пользователь: active ИЛИ (inactive И author_id = viewer_id)
         if (viewer_id) {
             const comments = await Comments.listByPostForViewer({
                 post_id,
@@ -216,8 +210,6 @@ export const PostController = {
             });
             return res.json(comments);
         }
-
-        // Гость: только active
         const comments = await Comments.listByPost({
             post_id,
             include_inactive: false,
@@ -311,13 +303,10 @@ export const PostController = {
         if (!req.file)
             return res.status(400).json({ error: 'No file uploaded' });
 
-        // Собираем корректный путь из req.file
         let p = (req.file.path || req.file.filename || '')
             .toString()
             .replace(/\\/g, '/');
-        // гарантируем ведущий слэш
         if (!p.startsWith('/')) p = '/' + p;
-        // уберём возможный /api и лишние вариации 'uploads'
         p = p.replace(/^\/api(\/|$)/i, '/');
         p = p.replace(/^\/?uploads\/+/i, '/uploads/');
         return res.json({ url: p });

@@ -1,4 +1,3 @@
-// frontend/src/features/profile/pages/PublicProfile.jsx
 import React, { useEffect, useState } from 'react';
 import { matchPath, parsePath } from '../../../shared/router/helpers';
 import api from '../../../shared/api/axios';
@@ -39,7 +38,6 @@ export default function PublicProfile() {
     const [loading, setLoading] = useState(true);
     const [err, setErr] = useState('');
 
-    // загрузка юзера
     useEffect(() => {
         let stop = false;
         (async () => {
@@ -59,7 +57,6 @@ export default function PublicProfile() {
         };
     }, [userId]);
 
-    // статистика
     useEffect(() => {
         if (!userId) return;
         let stop = false;
@@ -84,8 +81,6 @@ export default function PublicProfile() {
         };
     }, [userId]);
 
-    // посты автора
-    // посты автора
     async function fetchPosts({ page = 1, append = false } = {}) {
         if (!userId) return;
         const limit = meta.limit || 20;
@@ -94,7 +89,6 @@ export default function PublicProfile() {
             const params = {
                 page,
                 limit,
-                // разные алиасы, которые могли быть у бэка
                 author_id: userId,
                 authorId: userId,
                 author: userId,
@@ -104,12 +98,10 @@ export default function PublicProfile() {
                 owner_id: userId,
                 ownerId: userId,
                 only_author: 1,
-                // типичные пагинационные алиасы на всякий:
                 per_page: limit,
                 offset: (page - 1) * limit,
                 skip: (page - 1) * limit,
                 take: limit,
-                // желательно видеть только активные в публичном профиле:
                 status: 'active',
             };
 
@@ -137,7 +129,6 @@ export default function PublicProfile() {
                 totalFromServer = Number(data?.total ?? data?.count);
             }
 
-            // 🔒 ЖЁСТКО фильтруем клиентом по author_id (и возможным полям)
             const filtered = (items || []).filter((p) => {
                 const aid = Number(
                     p.author_id ??
@@ -150,7 +141,6 @@ export default function PublicProfile() {
                 return Number.isFinite(aid) && aid === userId;
             });
 
-            // сортировка по дате (на всякий)
             filtered.sort((a, b) => {
                 const ta = new Date(a.created_at || a.createdAt || 0).getTime();
                 const tb = new Date(b.created_at || b.createdAt || 0).getTime();
@@ -159,14 +149,11 @@ export default function PublicProfile() {
 
             setPosts((prev) => {
                 const next = append ? [...prev, ...filtered] : filtered;
-                // уникализируем по id
                 const map = new Map();
                 for (const p of next) if (p?.id != null) map.set(p.id, p);
                 return Array.from(map.values());
             });
 
-            // Если сервер дал «общий» total, он может быть некорректен для автора.
-            // Пытаемся взять более точный, если есть; иначе — считаем по факту.
             const totalAuthor = Number(
                 data?.author_total ?? data?.author_posts_total ?? NaN
             );
@@ -186,7 +173,6 @@ export default function PublicProfile() {
         setPosts([]);
         setMeta((m) => ({ ...m, page: 1, total: 0 }));
         if (userId) fetchPosts({ page: 1, append: false });
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [userId]);
 
     const hasMore = posts.length < (meta.total || 0);
@@ -240,7 +226,6 @@ export default function PublicProfile() {
             <section className="profile-wrap glam">
                 <div className="profile-glow" aria-hidden />
 
-                {/* ЛЕВАЯ КОЛОНКА */}
                 <aside>
                     <div className="left-head">
                         <div className="profile-avatar-wrap big">
@@ -282,7 +267,6 @@ export default function PublicProfile() {
                             <div className="profile-role-chip">{role}</div>
                         </div>
 
-                        {/* email лучше не показывать публично; если нужно — верни этот блок */}
                         {joined && (
                             <div className="profile-meta__row">
                                 <span>joined</span>
@@ -302,8 +286,6 @@ export default function PublicProfile() {
                         </div>
                     </div>
 
-                    {/* БЕЗ кнопок Edit/Logout — как просили */}
-
                     <div className="profile-blob-card">
                         <MetaBalls
                             className="blob"
@@ -319,10 +301,8 @@ export default function PublicProfile() {
                     </div>
                 </aside>
 
-                {/* ВЕРТИКАЛЬНАЯ ЛИНИЯ */}
                 <div className="profile-vline" aria-hidden />
 
-                {/* ПРАВАЯ КОЛОНКА */}
                 <main className="glam-main">
                     <div className="main-topbar">
                         <div className="counters-inline">
@@ -333,7 +313,6 @@ export default function PublicProfile() {
                                 Favorite: <b>{Number(stats.favorites ?? 0)}</b>
                             </span>
                         </div>
-                        {/* БЕЗ кнопки Create post */}
                     </div>
 
                     <h3 className="profile-section-title">Posts</h3>

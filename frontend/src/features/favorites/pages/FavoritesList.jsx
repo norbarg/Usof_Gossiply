@@ -20,12 +20,10 @@ export default function FavoritesList() {
     const [err, setErr] = useState(null);
     const [hasMore, setHasMore] = useState(true);
 
-    // редирект, если не залогинен
     useEffect(() => {
         if (!token) navigate('/login');
     }, [token]);
 
-    // загрузка страницы избранного
     async function fetchPage(p) {
         try {
             setLoading(true);
@@ -38,9 +36,7 @@ export default function FavoritesList() {
                 : data.items ?? data.results ?? data.data ?? [];
             const mapped = (rows || []).map((r) => ({
                 ...r,
-                // в избранном — точно true
                 favorited: true,
-                // подстраховки по полям, которые ждёт PostCard
                 created_at:
                     r.created_at ||
                     r.publish_date ||
@@ -55,7 +51,6 @@ export default function FavoritesList() {
                     r.login ||
                     '',
                 author_name: r.author_name || r.full_name || r.name || '',
-                // если бэк всё-таки вернул categories_csv (строкой) — распарсим
                 categories: Array.isArray(r.categories)
                     ? r.categories
                     : r.categories_csv
@@ -67,7 +62,6 @@ export default function FavoritesList() {
                 p === 1 ? mapped : dedupById(prev.concat(mapped))
             );
             setPage(p);
-            // если пришло меньше, чем limit — дальше нет страниц
             setHasMore((rows || []).length === limit);
         } catch (e) {
             const status = e?.response?.status;
@@ -83,10 +77,8 @@ export default function FavoritesList() {
 
     useEffect(() => {
         fetchPage(1);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // бесконечный скролл
     const sentinelRef = useRef(null);
     useEffect(() => {
         if (!sentinelRef.current) return;
@@ -103,14 +95,10 @@ export default function FavoritesList() {
         return () => io.disconnect();
     }, [page, hasMore, loading]);
 
-    // FavoritesList.jsx
     const onFav = (id) => {
         const prevItems = items;
-        // локально убираем карточку
         setItems((prev) => prev.filter((p) => p.id !== id));
-        // говорим экшену, что до клика оно было в избранном
         dispatch(toggleFavorite(id, { currentFavorited: true })).catch(() => {
-            // откат
             setItems(prevItems);
         });
     };
@@ -136,7 +124,6 @@ export default function FavoritesList() {
                 ))}
             </div>
 
-            {/* якорь для подгрузки */}
             <div ref={sentinelRef} style={{ height: 1 }} />
 
             <div

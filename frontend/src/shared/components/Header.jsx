@@ -17,6 +17,7 @@ export default function Header() {
 
     const [term, setTerm] = useState('');
     const [menuOpen, setMenuOpen] = useState(false);
+    const [mobileNavOpen, setMobileNavOpen] = useState(false); // NEW
     const menuWrapRef = useRef(null);
     const debounceMs = 400;
 
@@ -35,8 +36,8 @@ export default function Header() {
                   0
                 : scroller.scrollTop;
 
-        const TOP_FREE_SHOW = 60; // всегда показывать, если почти у верха
-        const THRESHOLD = 2; // антидребезг
+        const TOP_FREE_SHOW = 60;
+        const THRESHOLD = 2;
 
         let last = getY();
         let ticking = false;
@@ -48,26 +49,20 @@ export default function Header() {
             last = y;
 
             if (y <= TOP_FREE_SHOW) {
-                // почти у верха — показываем
                 setHidden(false);
                 return;
             }
-            // Пока не было явного пользовательского ввода,
-            // игнорируем программные смещения (восстановление скролла, лэйаут и т.п.)
             if (!userScrolledRef.current) {
                 return;
             }
             if (dy > THRESHOLD) {
-                // вниз — прячем
                 setHidden(true);
                 return;
             }
             if (dy < -THRESHOLD) {
-                // вверх — показываем
                 setHidden(false);
                 return;
             }
-            // мелкие колебания игнорим
         };
 
         const onScroll = () => {
@@ -77,17 +72,15 @@ export default function Header() {
             }
         };
 
-        // основной слушатель — на реальном скроллере
         (scroller === window ? window : scroller).addEventListener(
             'scroll',
             onScroll,
             { passive: true }
         );
 
-        // фоллбеки — помогают, если скроллит вложенный элемент
         const onWheel = (e) => {
             userScrolledRef.current = true;
-            if (e.deltaY < 0) setHidden(false); // вверх колёсиком — показать
+            if (e.deltaY < 0) setHidden(false);
             else if (getY() > TOP_FREE_SHOW) setHidden(true);
         };
         const onTouchMove = () => {
@@ -95,7 +88,6 @@ export default function Header() {
             onScroll();
         };
         const onKey = (e) => {
-            // клавиши прокрутки
             if (
                 e.key === 'ArrowUp' ||
                 e.key === 'ArrowDown' ||
@@ -122,7 +114,6 @@ export default function Header() {
             window.removeEventListener('keydown', onKey);
         };
     }, []);
-    // При маунте: показать хедер, обновить baseline скролла, проставить реальную высоту в CSS var
     useEffect(() => {
         try {
             setHidden(false);
@@ -137,8 +128,6 @@ export default function Header() {
                       0
                     : scroller.scrollTop;
             lastY.current = getY();
-
-            // Замеряем фактическую высоту шапки → кладём в --header-height
             const el = document.querySelector('.site-header');
             if (el) {
                 const h = Math.round(
@@ -154,12 +143,11 @@ export default function Header() {
         } catch {}
     }, []);
 
-    // На смену роутов — всегда раскрывать и сбрасывать baseline, чтобы не «подпрыгивал»
     useEffect(() => {
         const off = onRouteChange(() => {
+            setMobileNavOpen(false); // NEW
             setHidden(false);
             userScrolledRef.current = false;
-            // обновим базовую точку
             const scroller =
                 document.querySelector('[data-scroller]') || window;
             const y =
@@ -173,7 +161,6 @@ export default function Header() {
         });
         return off;
     }, []);
-    // sync из URL + подписка
     useEffect(() => {
         const syncFromUrl = () => {
             const usp = new URLSearchParams(location.search);
@@ -184,7 +171,6 @@ export default function Header() {
         return off;
     }, []);
 
-    // живой поиск (?q=...)
     useEffect(() => {
         const h = setTimeout(() => {
             const next = term.trim();
@@ -198,7 +184,6 @@ export default function Header() {
         return () => clearTimeout(h);
     }, [term]);
 
-    // закрытие поповера по клику-вне и по Esc
     useEffect(() => {
         if (!menuOpen) return;
         const onDoc = (e) => {
@@ -221,24 +206,21 @@ export default function Header() {
     const doLogout = async () => {
         await dispatch(logout());
         setMenuOpen(false);
-        // на всякий — уберём флаг приветствия
         try {
             sessionStorage.removeItem('justLoggedIn');
         } catch {}
-        // перезапишем текущую запись истории на главную
         try {
             window.history.replaceState({}, '', '/');
         } catch {}
-        // и добавим /login как новую запись (чтобы внутри auth back работал)
-        navigate('/login'); // важно: push, не replace
+        navigate('/login');
     };
 
     const go = (path) => {
         setMenuOpen(false);
+        setMobileNavOpen(false); // NEW
         navigate(path);
     };
 
-    // active
     const path = location.pathname || '/';
     const isPosts = path === '/' || path.startsWith('/posts');
     const isCategories = path.startsWith('/categories');
@@ -248,23 +230,34 @@ export default function Header() {
             className={`site-header ${hidden ? 'is-hidden' : 'is-visible'}`}
         >
             <div className="container header__inner">
-                {/* ЛОГО + Нейминг */}
+                {/* Бургер — виден только на мобилках */}
+                <button
+                    className="hamburger" // NEW
+                    aria-label="Open navigation"
+                    aria-expanded={mobileNavOpen}
+                    aria-controls="mobile-drawer"
+                    onClick={() => setMobileNavOpen((v) => !v)}
+                >
+                    <span />
+                    <span />
+                    <span />
+                </button>
+
                 <button
                     className="brand"
-                    onClick={() => navigate('/')}
+                    onClick={() => go('/')}
                     aria-label="Gossiply home"
                 >
-                    {/* положи /logo.svg в public; временно можно заменить любой svg/png */}
                     <img className="brand__logo" src="/logo.svg" alt="" />
                     <span className="brand__name">Gossiply</span>
                 </button>
 
-                {/* NAV */}
+                {/* Десктоп-навигация */}
                 <nav className="main-nav">
                     <button
                         type="button"
                         className={`nav-a ${isPosts ? 'is-active' : ''}`}
-                        onClick={() => navigate('/')}
+                        onClick={() => go('/')}
                         aria-current={isPosts ? 'page' : undefined}
                     >
                         Posts
@@ -274,7 +267,7 @@ export default function Header() {
                     <button
                         type="button"
                         className={`nav-a ${isCategories ? 'is-active' : ''}`}
-                        onClick={() => navigate('/categories')}
+                        onClick={() => go('/categories')}
                         aria-current={isCategories ? 'page' : undefined}
                     >
                         Categories
@@ -284,9 +277,7 @@ export default function Header() {
                     <button
                         type="button"
                         className={`nav-a ${isFavorites ? 'is-active' : ''}`}
-                        onClick={() =>
-                            navigate(token ? '/favorites' : '/login')
-                        }
+                        onClick={() => go(token ? '/favorites' : '/login')}
                         aria-current={isFavorites ? 'page' : undefined}
                     >
                         Favorite
@@ -294,8 +285,8 @@ export default function Header() {
                     </button>
                 </nav>
 
-                {/* ПОИСК + АВАТАР */}
                 <div className="header-right" ref={menuWrapRef}>
+                    {/* Поиск: на мобилке будет компактным, см. CSS */}
                     <div className="header-search--line">
                         <input
                             type="search"
@@ -309,7 +300,6 @@ export default function Header() {
                     <div className="header-auth">
                         {token ? (
                             <>
-                                {/* имя + роль — между поиском и аватаркой */}
                                 <div className="user-label">
                                     <div className="user-label__name">
                                         {user?.login || user?.full_name}
@@ -319,7 +309,6 @@ export default function Header() {
                                     </div>
                                 </div>
 
-                                {/* аватарка — кнопка, открывает поповер */}
                                 <button
                                     className="avatar-btn"
                                     onClick={() => setMenuOpen((o) => !o)}
@@ -347,7 +336,6 @@ export default function Header() {
                                             className="user-menu__item"
                                             onClick={() => go('/profile')}
                                         >
-                                            {/* мини-аватар именно в пункте "My profile" */}
                                             <img
                                                 className="uicon uicon--avatar"
                                                 src={
@@ -422,13 +410,60 @@ export default function Header() {
                         ) : (
                             <button
                                 className="link-plain"
-                                onClick={() => navigate('/login')}
+                                onClick={() => go('/login')}
                             >
                                 sign in
                             </button>
                         )}
                     </div>
                 </div>
+            </div>
+
+            {/* Мобильный выезжающий дроуэр */}
+            <div
+                id="mobile-drawer"
+                className={`mobile-drawer ${mobileNavOpen ? 'is-open' : ''}`} // NEW
+                role="dialog"
+                aria-modal="true"
+            >
+                <div className="mobile-drawer__inner">
+                    <button
+                        className="mobile-drawer__close"
+                        aria-label="Close navigation"
+                        onClick={() => setMobileNavOpen(false)}
+                    >
+                        ×
+                    </button>
+
+                    <nav className="mobile-nav">
+                        <button
+                            className={`mnav-a ${isPosts ? 'is-active' : ''}`}
+                            onClick={() => go('/')}
+                        >
+                            Posts
+                        </button>
+                        <button
+                            className={`mnav-a ${
+                                isCategories ? 'is-active' : ''
+                            }`}
+                            onClick={() => go('/categories')}
+                        >
+                            Categories
+                        </button>
+                        <button
+                            className={`mnav-a ${
+                                isFavorites ? 'is-active' : ''
+                            }`}
+                            onClick={() => go(token ? '/favorites' : '/login')}
+                        >
+                            Favorite
+                        </button>
+                    </nav>
+                </div>
+                <button
+                    className="mobile-drawer__backdrop"
+                    onClick={() => setMobileNavOpen(false)}
+                />
             </div>
         </header>
     );

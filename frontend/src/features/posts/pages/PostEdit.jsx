@@ -17,7 +17,6 @@ const normalizeUploadUrl = (s) => {
     return u;
 };
 
-// blocks helpers
 function toBlocks(content) {
     if (Array.isArray(content)) return content;
     if (content && typeof content === 'object' && Array.isArray(content.blocks))
@@ -67,13 +66,11 @@ export default function PostEdit() {
     const [uploading, setUploading] = useState(false);
     const [error, setError] = useState('');
 
-    // cats popover (как в New Post)
     const [catsOpen, setCatsOpen] = useState(false);
     const catsBtnRef = useRef(null);
     const catsPopRef = useRef(null);
     const scrollRef = useRef(null);
 
-    // file picker: add/replace
     const fileInputRef = useRef(null);
     const pickModeRef = useRef({ type: 'add', index: -1 });
 
@@ -85,7 +82,6 @@ export default function PostEdit() {
     const canEditCategories = !!(isAuthor || isAdmin);
     const canChangeStatus = !!isAdmin;
 
-    // блокируем скролл под модалкой (как в New Post)
     useEffect(() => {
         const prev = document.body.style.overflow;
         document.body.style.overflow = 'hidden';
@@ -94,13 +90,11 @@ export default function PostEdit() {
         };
     }, []);
 
-    // загрузка поста
     useEffect(() => {
         const params = matchPath('/posts/:id/edit', parsePath());
         if (params?.id) dispatch(fetchPost(params.id));
     }, [dispatch]);
 
-    // загрузка категорий
     useEffect(() => {
         (async () => {
             try {
@@ -116,7 +110,6 @@ export default function PostEdit() {
         })();
     }, []);
 
-    // распаковка контента поста
     useEffect(() => {
         if (!post) return;
         const blocks = toBlocks(post.content);
@@ -126,7 +119,6 @@ export default function PostEdit() {
         setStatus(post.status || 'active');
     }, [post?.id]);
 
-    // выбранные категории
     useEffect(() => {
         if (!post || !allCats.length) return;
         (async () => {
@@ -142,7 +134,6 @@ export default function PostEdit() {
         })();
     }, [post?.id, allCats.length]);
 
-    // закрытие popover по клику вне/ESC
     useEffect(() => {
         if (!catsOpen) return;
         const onClickOutside = (e) => {
@@ -163,7 +154,6 @@ export default function PostEdit() {
         };
     }, [catsOpen]);
 
-    // горизонтальный скролл в поповере
     useEffect(() => {
         if (!catsOpen) return;
         const scroller = scrollRef.current;
@@ -193,7 +183,6 @@ export default function PostEdit() {
         else navigate(`/posts/${post?.id}`, { replace: true });
     }, [post?.id]);
 
-    // клик по подложке закрывает, как и у New Post
     const onVeilClick = (e) => {
         if (e.target === e.currentTarget) onCancel();
     };
@@ -318,7 +307,6 @@ export default function PostEdit() {
                         </div>
                     )}
 
-                    {/* Автор + inline title */}
                     <div className="author-row">
                         <img
                             className="author-ava"
@@ -346,7 +334,6 @@ export default function PostEdit() {
                         />
                     </div>
 
-                    {/* Описание */}
                     <textarea
                         className="desc-area inria-serif-regular"
                         placeholder="Update Description..."
@@ -355,7 +342,6 @@ export default function PostEdit() {
                         disabled={!canEditContent}
                     />
 
-                    {/* Uploader + превью */}
                     <div className="uploader">
                         <label
                             className="upload-btn -icon"
@@ -401,7 +387,6 @@ export default function PostEdit() {
                         )}
                     </div>
 
-                    {/* скрытый picker */}
                     <input
                         ref={fileInputRef}
                         type="file"
@@ -410,7 +395,6 @@ export default function PostEdit() {
                         onChange={onFilesPicked}
                     />
 
-                    {/* Категории + выбранные */}
                     <div className="nizz">
                         <div className="cats-picker">
                             <div className="cats-line">
@@ -509,8 +493,6 @@ export default function PostEdit() {
                             )}
                         </div>
 
-                        {/* футер: статус (для админа) + кнопки */}
-                        {/* футер: статус (для админа) + кнопки */}
                         <div className="compose-footer two">
                             {canChangeStatus ? (
                                 <div

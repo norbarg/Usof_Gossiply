@@ -1,14 +1,5 @@
-// frontend/src/shared/components/Paginator.jsx
 import React from 'react';
 
-/**
- * Пагинатор по страницам.
- * Пропсы:
- * - page (number)        — текущая страница (1..N)
- * - totalPages (number)  — всего страниц
- * - onPage(p: number)    — клик по странице
- */
-// shared/components/Paginator.jsx
 export default function Paginator({ page, limit, total, onPage }) {
     if (!total || total <= limit) return null;
     const pages = Math.ceil(total / limit);

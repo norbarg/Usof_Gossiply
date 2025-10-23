@@ -79,7 +79,6 @@ export const UserController = {
 
         const data = {};
 
-        // full_name
         if ('full_name' in req.body) {
             const v = String(req.body.full_name || '').trim();
             if (v.length < 2)
@@ -87,7 +86,6 @@ export const UserController = {
             data.full_name = v;
         }
 
-        // login: формат + уникальность
         if ('login' in req.body) {
             const v = String(req.body.login || '').trim();
             if (!/^[a-zA-Z0-9_.]{3,20}$/.test(v)) {
@@ -100,14 +98,12 @@ export const UserController = {
             data.login = v;
         }
 
-        // profile_picture (обычно меняется через /users/avatar, но оставим совместимость)
         if ('profile_picture' in req.body) {
             data.profile_picture = String(
                 req.body.profile_picture || ''
             ).trim();
         }
 
-        // role — только админ
         if ('role' in req.body) {
             if (req.user.role !== 'admin')
                 return res.status(403).json({ error: 'Forbidden' });
@@ -165,7 +161,6 @@ export const UserController = {
 
         res.json(posts);
     },
-    // ✨ статистика для себя
     async statsMe(req, res) {
         const data = await getUserStats({
             targetUserId: req.user.id,
@@ -174,7 +169,6 @@ export const UserController = {
         res.json(data);
     },
 
-    // ✨ статистика по :user_id
     async statsById(req, res) {
         const uid = Number(req.params.user_id);
         if (!Number.isFinite(uid))
@@ -187,12 +181,10 @@ export const UserController = {
     },
 };
 
-// ✨ хелпер
 async function getUserStats({ targetUserId, viewer }) {
     const canSeeAll =
         !!viewer && (viewer.role === 'admin' || viewer.id === targetUserId);
 
-    // posts: либо все, либо только active
     const [postRows] = await pool.query(
         canSeeAll
             ? `SELECT COUNT(*) AS total FROM posts WHERE author_id = :id`
@@ -201,14 +193,12 @@ async function getUserStats({ targetUserId, viewer }) {
     );
     const posts = Number(postRows[0]?.total ?? 0);
 
-    // favorites: сколько пользователь добавил в избранное
     const [favRows] = await pool.query(
         `SELECT COUNT(*) AS total FROM favorites WHERE user_id = :id`,
         { id: targetUserId }
     );
     const favorites = Number(favRows[0]?.total ?? 0);
 
-    // rating: лежит в users.rating
     const [uRows] = await pool.query(
         `SELECT rating FROM users WHERE id = :id`,
         { id: targetUserId }

@@ -1,4 +1,3 @@
-// frontend/src/features/posts/postsActions.js
 import api from '../../shared/api/axios';
 
 export const POSTS_LOADING = 'posts/LOADING';
@@ -18,16 +17,6 @@ const setMeta = (meta) => ({ type: POSTS_SET_META, payload: meta });
 export const setOne = (post) => ({ type: POST_SET_ONE, payload: post });
 const setFavIds = (ids) => ({ type: POSTS_SET_FAV_IDS, payload: ids });
 
-/**
- * Надёжный listPosts: отправляем сразу несколько вариантов параметров,
- * чтобы попасть в контракт бэка (page/limit, offset/limit, skip/take, per_page и т.д.).
- * Разбираем ответ в популярных форматах:
- *  - { items, total }
- *  - { results, count }
- *  - { data, meta:{ total, page, limit } }
- *  - [ ... ]  (простой массив — тогда total пока неизвестен)
- *     listPosts(params, { append=false })
- */
 export const listPosts =
     (params = {}) =>
     async (dispatch) => {
@@ -36,47 +25,41 @@ export const listPosts =
         const {
             page = 1,
             limit = 10,
-            category_id, // для совместимости
-            category_ids, // массив
+            category_id,
+            category_ids,
             q,
             date_from,
             date_to,
-            status, // '', 'active', 'inactive', 'all'
+            status,
         } = params;
 
-        // считаем offset из page, чтобы поддержать оба подхода
         const offset = (page - 1) * limit;
-        // поддержка и sortBy, и sort
         const sortBy = String(params.sortBy ?? params.sort ?? 'likes_desc');
 
         try {
             const { data, headers } = await api.get('/posts', {
                 params: {
-                    // сортировка/фильтры как есть
-                    sortBy, // <— основной
+                    sortBy,
                     sort: sortBy,
-                    category_id, // старый
-                    category_ids, // новый (массив или строка)
+                    category_id,
+                    category_ids,
                     q,
                     date_from,
                     date_to,
                     status,
-                    // Варианты пагинации (пусть бэк возьмёт то, что он умеет):
-                    page, // самый частый
+                    page,
                     limit,
-                    per_page: limit, // синонимы "limit"
+                    per_page: limit,
                     offset,
-                    skip: offset, // альтернативы "offset"
-                    take: limit, // ещё один частый ключ из TypeORM
+                    skip: offset,
+                    take: limit,
                 },
             });
 
-            // Разные формы ответа
             let items, total;
 
             if (Array.isArray(data)) {
                 items = data;
-                // total: попробуем вытащить из заголовка (часто ставят X-Total-Count)
                 total = Number(headers?.['x-total-count']) || items.length;
             } else if (data?.items) {
                 items = data.items;
@@ -92,7 +75,6 @@ export const listPosts =
                     data.meta.total ?? data.meta.count ?? items.length
                 );
             } else {
-                // просто на всякий
                 items = data?.rows || data?.list || [];
                 total = Number(data?.total ?? data?.count ?? items.length);
             }
@@ -115,11 +97,9 @@ export const listPosts =
         }
     };
 
-/** загрузка детали поста */
 export const fetchPost = (id) => async (dispatch) => {
     const postId = Number(id);
     if (!Number.isFinite(postId)) {
-        // мягко завершаем без запроса — роутер сам покажет “Not found”/скелетон
         return false;
     }
     dispatch(setLoading(true));
@@ -130,19 +110,17 @@ export const fetchPost = (id) => async (dispatch) => {
     } catch (e) {
         const status = e?.response?.status;
         if (status === 404) {
-            // пост удалён/не найден — просто чистим current и молча выходим
             dispatch(setOne(null));
             dispatch(setError(null));
             return false;
         }
         dispatch(setError(e?.response?.data?.error || 'Failed to load post'));
-        return false; // не бросаем — чтобы не было Uncaught
+        return false;
     } finally {
         dispatch(setLoading(false));
     }
 };
 
-/** универсальное переключение реакции: 'like' | 'dislike' */
 export const toggleReaction =
     (postId, nextType /* 'like' | 'dislike' */) =>
     async (dispatch, getState) => {
@@ -159,7 +137,6 @@ export const toggleReaction =
         let patch = {};
 
         if (current === nextType) {
-            // убрать реакцию
             if (nextType === 'like') likesUp = Math.max(0, likesUp - 1);
             if (nextType === 'dislike') likesDown = Math.max(0, likesDown - 1);
             patch = {
@@ -171,19 +148,16 @@ export const toggleReaction =
                 likes_count: likesUp - likesDown,
             };
 
-            // оптимистично
             dispatch(setOne({ ...post, ...patch }));
             try {
                 await api.delete(`/posts/${postId}/like`);
             } catch (e) {
-                // откат
                 dispatch(setOne(post));
                 throw e;
             }
             return;
         }
 
-        // переключаемся или ставим новую
         if (nextType === 'like') {
             if (current === 'dislike') likesDown = Math.max(0, likesDown - 1);
             likesUp += 1;
@@ -196,7 +170,6 @@ export const toggleReaction =
                 likes_count: likesUp - likesDown,
             };
         } else {
-            // 'dislike'
             if (current === 'like') likesUp = Math.max(0, likesUp - 1);
             likesDown += 1;
             patch = {
@@ -209,12 +182,10 @@ export const toggleReaction =
             };
         }
 
-        // оптимистично
         dispatch(setOne({ ...post, ...patch }));
         try {
             await api.post(`/posts/${postId}/like`, { type: nextType });
         } catch (e) {
-            // откат
             dispatch(setOne(post));
             throw e;
         }
@@ -224,7 +195,6 @@ export const toggleLike = (postId) => toggleReaction(postId, 'like');
 
 export const toggleDislike = (postId) => toggleReaction(postId, 'dislike');
 
-// postsActions.js
 export const toggleFavorite =
     (postId, opts = {}) =>
     async (dispatch, getState) => {
@@ -235,10 +205,8 @@ export const toggleFavorite =
         const wasFavorited = postInStore?.favorited ?? !!opts.currentFavorited;
         const next = !wasFavorited;
 
-        // оптимистичное обновление карточки
         if (postInStore) dispatch(setOne({ ...postInStore, favorited: next }));
 
-        // оптимистично обновим ids
         const prevIds = posts.favoriteIds || [];
         const nextIds = next
             ? Array.from(new Set([...prevIds, postId]))
@@ -249,22 +217,18 @@ export const toggleFavorite =
             if (next) await api.post(`/posts/${postId}/favorite`);
             else await api.delete(`/posts/${postId}/favorite`);
         } catch (e) {
-            // откат карточки
             if (postInStore)
                 dispatch(setOne({ ...postInStore, favorited: wasFavorited }));
-            // откат ids
             dispatch(setFavIds(prevIds));
             throw e;
         }
     };
 
-// грузим ids избранных один раз (или при входе)
 export const loadMyFavoriteIds = () => async (dispatch, getState) => {
     try {
         const { auth } = getState();
-        if (!auth?.token) return; // не залогинен — пропускаем
+        if (!auth?.token) return;
 
-        // возьми побольше лимит; при необходимости можно докрутить пагинацию
         const { data } = await api.get('/users/me/favorites', {
             params: { page: 1, limit: 1000 },
         });
@@ -273,11 +237,8 @@ export const loadMyFavoriteIds = () => async (dispatch, getState) => {
             : data.items ?? data.results ?? data.data ?? [];
         const ids = (rows || []).map((r) => r.id);
         dispatch(setFavIds(ids));
-    } catch (_) {
-        /* no-op */
-    }
+    } catch (_) {}
 };
-// payload: { title, contentBlocks (array), categories (array of ids), desiredStatus }
 export const createPost =
     ({
         title,
@@ -287,16 +248,14 @@ export const createPost =
     }) =>
     async (dispatch, getState) => {
         try {
-            // бэку нужны: title, content (любой JSON), categories
             const body = {
                 title,
-                content: contentBlocks, // массив блоков [{type:'p', text:'...'}]
+                content: contentBlocks,
                 categories: categories.map((c) => +c).filter(Boolean),
             };
             const { data } = await api.post('/posts', body);
             dispatch(setOne(data));
 
-            // если хотели черновик — можно попытаться (права есть только у админа)
             if (desiredStatus === 'inactive') {
                 try {
                     const { auth } = getState();
@@ -307,20 +266,15 @@ export const createPost =
                         dispatch(setOne(upd.data));
                         return upd.data;
                     }
-                } catch (_) {
-                    /* игнорим — для обычного пользователя backend не даёт менять статус */
-                }
+                } catch (_) {}
             }
             return data;
         } catch (e) {
             throw e?.response?.data?.error || e;
         }
     };
-// frontend/src/features/posts/postsActions.js
-// ...остальное без изменений
 export const deletePost = (postId) => async (dispatch, getState) => {
     await api.delete(`/posts/${postId}`);
-    // мягко вычистим current и уберём из ленты если он там есть
     const { posts } = getState();
     const nextItems = (posts.items || []).filter((p) => p.id !== postId);
     dispatch(setList(nextItems));
@@ -337,11 +291,10 @@ export const updatePost =
         if (Array.isArray(categories)) {
             body.categories = categories.map((c) => +c).filter(Boolean);
         }
-        if (status !== undefined) body.status = status; // 'active' | 'inactive' (бэк уже валидирует)
+        if (status !== undefined) body.status = status;
 
         const { data } = await api.patch(`/posts/${id}`, body);
 
-        // Обновим current и ленту
         dispatch(setOne(data));
         const { posts } = getState();
         const items = posts.items || [];

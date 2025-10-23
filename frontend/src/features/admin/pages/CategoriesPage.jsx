@@ -3,14 +3,13 @@ import api from '../../../shared/api/axios';
 import DataTable from '../components/DataTable';
 
 export default function CategoriesPage() {
-    const [allRows, setAllRows] = useState([]); // всё, что дали с бэка
-    const [rows, setRows] = useState([]); // отфильтрованное отображение
+    const [allRows, setAllRows] = useState([]);
+    const [rows, setRows] = useState([]);
     const [q, setQ] = useState('');
     const [loading, setLoading] = useState(true);
     const [title, setTitle] = useState('');
     const [desc, setDesc] = useState('');
 
-    // грузим один раз большое кол-во и дальше фильтруем локально
     useEffect(() => {
         let stop = false;
         (async () => {
@@ -31,7 +30,6 @@ export default function CategoriesPage() {
         };
     }, []);
 
-    // поиск по title/description
     useEffect(() => {
         const lq = q.trim().toLowerCase();
         const filtered = lq
@@ -53,7 +51,7 @@ export default function CategoriesPage() {
         if (!name) return;
         const body = { title: name, description: desc.trim() || null };
         const { data } = await api.post('/categories', body);
-        setAllRows((prev) => [data, ...prev]); // попадёт в фильтр эффектом
+        setAllRows((prev) => [data, ...prev]);
         setTitle('');
         setDesc('');
     };

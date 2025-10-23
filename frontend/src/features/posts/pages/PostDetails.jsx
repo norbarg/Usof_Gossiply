@@ -1,4 +1,3 @@
-// frontend/src/features/posts/pages/PostDetails.jsx
 import React, { useEffect, useState, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
@@ -13,7 +12,6 @@ import { matchPath, parsePath, navigate } from '../../../shared/router/helpers';
 import { formatDate } from '../../../shared/utils/format';
 import { assetUrl } from '../../../shared/utils/assetUrl';
 import api from '../../../shared/api/axios';
-// Pretty date: "November 15, 2025 at 12:28"
 function formatUSDate(value) {
     if (!value) return '';
     const d = new Date(value);
@@ -31,7 +29,6 @@ function formatUSDate(value) {
     return `${date} at ${time}`;
 }
 
-// === drag-scroll helper ===
 function useDragScroll(ref) {
     const state = useRef({
         down: false,
@@ -43,7 +40,7 @@ function useDragScroll(ref) {
         const el = ref.current;
         if (!el) return;
         const onDown = (e) => {
-            if (e.pointerType === 'mouse' && e.button !== 0) return; // только ЛКМ
+            if (e.pointerType === 'mouse' && e.button !== 0) return;
             el.setPointerCapture?.(e.pointerId);
             e.preventDefault();
             state.current = {
@@ -64,7 +61,6 @@ function useDragScroll(ref) {
         const end = () => {
             if (!state.current.down) return;
             state.current.down = false;
-            // небольшая задержка, чтобы клики после драга не срабатывали
             state.current.justDraggedAt = Date.now();
             el.classList.remove('dragging');
         };
@@ -93,7 +89,6 @@ function useDragScroll(ref) {
     return { suppressClickRef: { current: suppressClick } };
 }
 
-// === lightbox ===
 function Lightbox({ items, index, onClose, setIndex }) {
     useEffect(() => {
         const onKey = (e) => {
@@ -145,7 +140,6 @@ function Lightbox({ items, index, onClose, setIndex }) {
     );
 }
 
-// === horizontal media strip (group of imgs) ===
 function MediaStrip({ items, onOpen }) {
     const rowRef = useRef(null);
     const { suppressClickRef } = useDragScroll(rowRef);
@@ -171,7 +165,6 @@ function MediaStrip({ items, onOpen }) {
     );
 }
 
-// === Blocks with grouping consecutive images into strips ===
 function Blocks({ blocks }) {
     const [lb, setLb] = useState({ items: null, index: null });
 
@@ -186,9 +179,8 @@ function Blocks({ blocks }) {
         }));
     };
 
-    // Разбиваем: последовательности IMG -> MediaStrip, остальное рендерим как есть
     const out = [];
-    let buffer = []; // собранные IMG
+    let buffer = [];
     const flush = () => {
         if (buffer.length) {
             out.push(
@@ -256,13 +248,11 @@ function asArray(payload) {
     if (Array.isArray(payload?.results)) return payload.results;
     if (Array.isArray(payload?.data)) return payload.data;
     if (Array.isArray(payload?.rows)) return payload.rows;
-    // mysql2 на некоторых врапперах: [rows, fields]
     if (Array.isArray(payload?.[0]) && !payload?.[0]?.length === false)
         return payload[0];
     return [];
 }
 
-// строим дерево: родители сверху, у каждого .replies[]
 function buildTree(rows) {
     const byId = new Map();
     rows.forEach((r) => byId.set(r.id, { ...r, replies: [] }));
@@ -271,12 +261,11 @@ function buildTree(rows) {
         if (c.parent_id) {
             const parent = byId.get(c.parent_id);
             if (parent) parent.replies.push(c);
-            else roots.push(c); // fallback если пришёл некорректный parent
+            else roots.push(c);
         } else {
             roots.push(c);
         }
     });
-    // сортировка внутри веток по дате (на всякий)
     const sortRec = (list) => {
         list.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
         list.forEach((n) => sortRec(n.replies));
@@ -436,7 +425,6 @@ function PostActionsMenu({
                 onClick={() => setOpen((v) => !v)}
                 title="Actions"
             >
-                {/* заменили текст на иконку */}
                 <img
                     className="ico"
                     src="/icons/more.png"
@@ -513,7 +501,6 @@ function PostActionsMenu({
         </div>
     );
 }
-// где-нибудь рядом с другими утилитами
 const asBool = (v) => {
     if (typeof v === 'boolean') return v;
     if (typeof v === 'number') return v === 1;
@@ -577,15 +564,12 @@ export default function PostDetails() {
     useEffect(() => {
         if (!post?.id) return;
 
-        // будуємо абсолютний/відносний URL з урахуванням axios baseURL
-        const base = (api?.defaults?.baseURL || '').replace(/\/+$/, ''); // напр., "/api"
+        const base = (api?.defaults?.baseURL || '').replace(/\/+$/, '');
         const streamUrl = `${base}/posts/${post.id}/comments/stream`;
 
         const es = new EventSource(streamUrl);
 
-        es.addEventListener('hello', () => {
-            /* no-op */
-        });
+        es.addEventListener('hello', () => {});
 
         es.onmessage = (e) => {
             try {
@@ -614,7 +598,6 @@ export default function PostDetails() {
                     case 'deleted': {
                         const id = msg.id;
                         if (!id) break;
-                        // прибираємо вузол + однорівневих дітей (у тебе є removeSubtreeLocal; тут — спрощено)
                         setComments((prev) =>
                             prev.filter(
                                 (c) => c.id !== id && c.parent_id !== id
@@ -662,9 +645,7 @@ export default function PostDetails() {
             } catch (_) {}
         };
 
-        es.onerror = () => {
-            /* браузер сам реконектиться; можна ігнорити */
-        };
+        es.onerror = () => {};
 
         return () => es.close();
     }, [post?.id]);
@@ -683,7 +664,6 @@ export default function PostDetails() {
                 content: text,
                 parent_id: parentId,
             });
-            // достаточно просто допушить в плоский список — дерево построится на лету
             setComments((prev) => [...prev, data]);
             setReplyText('');
             setReplyOpenFor(null);
@@ -694,22 +674,18 @@ export default function PostDetails() {
         }
     };
 
-    // ====== права для комментариев ======
     const meId = Number(auth?.user?.id ?? 0);
     const role = String(auth?.user?.role || '').toLowerCase();
     const isAdmin = role === 'admin';
     const canEditComment = (c) => meId > 0 && Number(c.author_id) === meId;
     const canToggleStatus = (c) => canEditComment(c) || isAdmin;
     const canDeleteComment = (c) => canEditComment(c) || isAdmin;
-
-    // ====== утилиты обновления списка ======
     const patchCommentLocal = (id, patch) =>
         setComments((prev) =>
             prev.map((c) => (c.id === id ? { ...c, ...patch } : c))
         );
     const removeSubtreeLocal = (rootId) =>
         setComments((prev) => {
-            // parent_id -> [childId]
             const map = new Map();
             prev.forEach((c) => {
                 if (c.parent_id != null) {
@@ -731,9 +707,7 @@ export default function PostDetails() {
             return prev.filter((c) => !toDel.has(c.id));
         });
     const setBusy = (id, v) => setBusyById((p) => ({ ...p, [id]: v }));
-    const isBusy = (id) => !!busyById[id];
 
-    // ====== EDIT ======
     const startEdit = (c) => {
         if (!canEditComment(c)) return;
         setEditingId(c.id);
@@ -762,7 +736,6 @@ export default function PostDetails() {
         }
     };
 
-    // ====== STATUS TOGGLE (active/inactive) ======
     const toggleCommentStatus = async (c) => {
         if (!canToggleStatus(c)) return;
         const id = c.id;
@@ -770,12 +743,10 @@ export default function PostDetails() {
             String(c.status || 'active') === 'active' ? 'inactive' : 'active';
         setBusy(id, true);
         const prev = { ...c };
-        // оптимистично
         patchCommentLocal(id, { status: next });
         try {
             await api.patch(`/comments/${id}`, { status: next });
         } catch (e) {
-            // откат
             patchCommentLocal(id, { status: prev.status });
             console.error(e);
             alert('Failed to change status');
@@ -784,7 +755,6 @@ export default function PostDetails() {
         }
     };
 
-    // ====== DELETE ======
     const deleteCommentById = async (c) => {
         if (!canDeleteComment(c)) return;
         const id = c.id;
@@ -792,8 +762,6 @@ export default function PostDetails() {
         setBusy(id, true);
         try {
             await api.delete(`/comments/${id}`);
-            // удаляем один узел (дети при следующей загрузке придут как есть с бэка;
-            // в текущем UI мы вычистим только сам узел)
             removeSubtreeLocal(id);
         } catch (e) {
             console.error(e);
@@ -803,10 +771,7 @@ export default function PostDetails() {
         }
     };
 
-    const toggleCommentReaction = async (
-        commentId,
-        nextType /* 'like'|'dislike' */
-    ) => {
+    const toggleCommentReaction = async (commentId, nextType) => {
         if (!auth?.token) {
             alert('To react to comments, please sign in.');
             return;
@@ -833,7 +798,6 @@ export default function PostDetails() {
             const prevSnapshot = { ...c };
 
             if (current === nextType) {
-                // снимаем реакцию
                 if (nextType === 'like') up = Math.max(0, up - 1);
                 else down = Math.max(0, down - 1);
                 copy[idx] = {
@@ -844,9 +808,7 @@ export default function PostDetails() {
                     likes_up_count: up,
                     likes_down_count: down,
                 };
-                // оптимистично, а затем сервер
                 api.delete(`/comments/${commentId}/like`).catch(() => {
-                    // откат при ошибке
                     setComments((p2) =>
                         p2.map((x) => (x.id === commentId ? prevSnapshot : x))
                     );
@@ -854,7 +816,6 @@ export default function PostDetails() {
                 return copy;
             }
 
-            // переключаем/ставим
             if (nextType === 'like') {
                 if (current === 'dislike') down = Math.max(0, down - 1);
                 up += 1;
@@ -880,7 +841,6 @@ export default function PostDetails() {
             }
             api.post(`/comments/${commentId}/like`, { type: nextType }).catch(
                 () => {
-                    // откат при ошибке
                     setComments((p2) =>
                         p2.map((x) => (x.id === commentId ? prevSnapshot : x))
                     );
@@ -898,11 +858,10 @@ export default function PostDetails() {
             const { data } = await api.post(`/posts/${post.id}/comments`, {
                 content: text,
             });
-            // Берём ответ сервера как источник истины и добавляем только безопасные дефолты:
             const enriched = {
                 ...data,
                 post_id: data?.post_id ?? post.id,
-                author_id: Number(data?.author_id ?? auth?.user?.id), // ← ВАЖНО
+                author_id: Number(data?.author_id ?? auth?.user?.id),
                 created_at: data?.created_at ?? new Date().toISOString(),
                 author_login:
                     data?.author_login ??
@@ -921,10 +880,8 @@ export default function PostDetails() {
             };
             setComments((prev) => [...prev, enriched]);
         } catch (e) {
-            // можно показать тост/ошибку
             console.error(e);
         } finally {
-            // очищаем поле в любом случае — чтобы не казалось, что "не стирается плейсхолдер"
             setNewComment('');
             setSending(false);
         }
@@ -938,7 +895,7 @@ export default function PostDetails() {
     const isAuthor = meId > 0 && authorId > 0 && meId === authorId;
     const canEditContent = isAuthor;
     const canEditCategories = isAuthor || isAdmin;
-    const canChangeStatus = isAdmin; // только админ
+    const canChangeStatus = isAdmin;
     const canDelete = isAuthor || isAdmin;
 
     const created = formatUSDate(
@@ -967,8 +924,6 @@ export default function PostDetails() {
     const likesDown = Number(post.likes_down_count ?? 0);
     const favCount = Number(post.favorites_count ?? post.favorites ?? 0);
     const isActivePost = String(post.status || '').toLowerCase() === 'active';
-
-    // состояния пользователя по посту
     const iLike = post.my_reaction === 'like' || post.liked === true;
     const iDislike = post.my_reaction === 'dislike' || post.disliked === true;
     const iFav = !!(post.favorited || post.is_favorite || post.my_favorite);
@@ -999,7 +954,6 @@ export default function PostDetails() {
                         </span>
                     )}
                     <div className="post-title-actions">
-                        {/* TOP favorite */}
                         <button
                             className={`icon-btn ${iFav ? 'is-on' : ''}`}
                             onClick={onFavPost}
@@ -1062,10 +1016,8 @@ export default function PostDetails() {
                     </div>
                 </div>
 
-                {/* разделитель после шапки */}
                 <div className="post-divider" />
 
-                {/* автор и мета */}
                 <div
                     className="author-row-post"
                     role="button"
@@ -1088,12 +1040,10 @@ export default function PostDetails() {
                 </div>
             </div>
 
-            {/* Контент */}
             <Content
                 content={post.content || post.content_html || post.contentHtml}
             />
 
-            {/* Футер поста с метриками/тегами и датой справа */}
             <div className="post-footer">
                 <div className="footer-left">
                     <div className="footer-actions">
@@ -1150,11 +1100,9 @@ export default function PostDetails() {
                 <div className="right">{created}</div>
             </div>
 
-            {/* Комментарии */}
             <div style={{ marginTop: 18 }}>
                 <h3 className="inria-serif-bold section-title">Comments</h3>
 
-                {/* Форма добавления комментария — над списком */}
                 <div className="comments-input-wrap">
                     {auth?.token ? (
                         <div className="comment-input-row">
@@ -1275,7 +1223,6 @@ function CommentNode(props) {
     return (
         <div className="comment-node">
             <div className="comment-row comment-grid">
-                {/* col: avatar */}
                 <img
                     className="c-ava"
                     src={cAva}
@@ -1289,9 +1236,7 @@ function CommentNode(props) {
                     alt=""
                 />
 
-                {/* col: main content */}
                 <div className="c-main">
-                    {/* header: name + status; kebab сидит в правой колонке */}
                     <div className="c-head">
                         <div className="c-author">
                             <button
@@ -1346,7 +1291,6 @@ function CommentNode(props) {
                         </div>
                     )}
 
-                    {/* bottom left: reply toggle + inline reply form */}
                     <div className="c-bottom-left">
                         <button
                             className="reply-link"
@@ -1393,7 +1337,6 @@ function CommentNode(props) {
                     )}
                 </div>
 
-                {/* col: right rail (kebab + reactions + date) */}
                 <div className="c-right">
                     <CommentActionsMenu
                         isActive={isActive}
@@ -1450,7 +1393,6 @@ function CommentNode(props) {
                 </div>
             </div>
 
-            {/* children */}
             {node.replies && node.replies.length > 0 && (
                 <div className="replies-area">
                     {!showReplies ? (
@@ -1465,7 +1407,7 @@ function CommentNode(props) {
                             {node.replies.map((child) => (
                                 <CommentNode
                                     key={child.id}
-                                    {...restProps} // тут точно нет node/level
+                                    {...restProps}
                                     node={child}
                                     level={level + 1}
                                 />

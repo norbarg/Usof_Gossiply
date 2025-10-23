@@ -1,4 +1,3 @@
-// frontend/src/shared/components/FiltersBar.jsx
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 const catName = (c) => c.name ?? c.title ?? c.label ?? c.slug ?? `#${c.id}`;
@@ -28,18 +27,12 @@ function useOutside(closeWhen) {
     return (el) => refs.current.push(el);
 }
 
-/**
- * Новые пропсы:
- * - catIconOff:   URL/путь до SVG/PNG для НЕвыбранной категории
- * - catIconOn:    URL/путь до SVG/PNG для ВЫБРАННОЙ категории
- *   (если не переданы — будет fallback на старую CSS-иконку .dot)
- */
 export default function FiltersBar({
     categories = [],
     value,
     onChange,
-    catIconOff, // <- новое
-    catIconOn, // <- новое
+    catIconOff,
+    catIconOn,
 }) {
     const v = value || {
         categoryIds: [],
@@ -69,7 +62,6 @@ export default function FiltersBar({
 
     const selected = (v.categoryIds ?? []).map(String);
 
-    // === ФЛАГИ АКТИВНОСТИ ===
     const hasCats = selected.length > 0;
     const hasSort = (v.sortBy ?? 'likes_desc') !== 'likes_desc';
     const hasStatus = !!(v.status && v.status !== '');
@@ -123,7 +115,6 @@ export default function FiltersBar({
     return (
         <div className=" filters--bubble">
             <div className="filters">
-                {/* Categories */}
                 <div className="menu" ref={attachOutside}>
                     <button
                         type="button"
@@ -159,7 +150,6 @@ export default function FiltersBar({
                                             }`}
                                             onClick={() => toggleCategory(id)}
                                         >
-                                            {/* если есть кастомные иконки — используем их; иначе fallback .dot */}
                                             {catIconOff && catIconOn ? (
                                                 <img
                                                     className="cat-ico"
@@ -190,7 +180,6 @@ export default function FiltersBar({
                     )}
                 </div>
 
-                {/* Sort */}
                 <div className="menu" ref={attachOutside}>
                     <button
                         type="button"
@@ -262,7 +251,6 @@ export default function FiltersBar({
                     )}
                 </div>
 
-                {/* Status */}
                 <div className="menu" ref={attachOutside}>
                     <button
                         type="button"
@@ -306,7 +294,6 @@ export default function FiltersBar({
                     )}
                 </div>
 
-                {/* Date */}
                 <div className="menu" ref={attachOutside}>
                     <button
                         type="button"

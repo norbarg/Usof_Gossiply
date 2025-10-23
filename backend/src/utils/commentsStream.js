@@ -1,7 +1,6 @@
-// простий реєстр підписників по postId
 import { randomUUID } from 'crypto';
 
-const subscribers = new Map(); // Map<postId, Map<clientId, res>>
+const subscribers = new Map();
 
 export function subscribeToComments(postId, res) {
     const key = String(postId);

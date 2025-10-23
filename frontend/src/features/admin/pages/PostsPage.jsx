@@ -6,13 +6,13 @@ import { navigate } from '../../../shared/router/helpers';
 export default function PostsPage() {
     const [rows, setRows] = useState([]);
     const [q, setQ] = useState('');
-    const [status, setStatus] = useState('all'); // all|active|inactive
+    const [status, setStatus] = useState('all');
     const [page, setPage] = useState(1);
     const [limit] = useState(20);
     const [loading, setLoading] = useState(true);
-    const [sortBy, setSortBy] = useState('id'); // не сортируем по дате
+    const [sortBy, setSortBy] = useState('id');
     const [sortDir, setSortDir] = useState('desc');
-    const [hasNext, setHasNext] = useState(false); // <-- ключ к правильной пагинации
+    const [hasNext, setHasNext] = useState(false);
 
     const fetchRows = async () => {
         setLoading(true);
@@ -30,7 +30,6 @@ export default function PostsPage() {
                 data?.items ?? data?.results ?? data?.data ?? data ?? [];
             setRows(items);
 
-            // универсально понимаем метаданные
             const pages = Number(data?.pages ?? 0);
             const total = Number(data?.total ?? data?.count ?? 0);
 
@@ -39,7 +38,6 @@ export default function PostsPage() {
             } else if (Number.isFinite(total) && total >= 0) {
                 setHasNext(page * limit < total);
             } else {
-                // фолбэк: если пришло ровно limit — предполагаем, что след. страница есть
                 setHasNext(items.length === limit);
             }
         } finally {
@@ -47,12 +45,10 @@ export default function PostsPage() {
         }
     };
 
-    // подгрузка
     useEffect(() => {
         fetchRows();
     }, [page, limit, q, status, sortBy, sortDir]);
 
-    // сброс на 1 страницу при смене фильтров/поиска
     useEffect(() => {
         setPage(1);
     }, [q, status]);

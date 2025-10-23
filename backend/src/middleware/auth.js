@@ -33,9 +33,7 @@ export function attachUserIfAny(req, _res, next) {
     if (token) {
         try {
             req.user = jwt.verify(token, env.JWT_SECRET);
-        } catch {
-            // токен битый — тихо игнорируем
-        }
+        } catch {}
     }
     next();
 }

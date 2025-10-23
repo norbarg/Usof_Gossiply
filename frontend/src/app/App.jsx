@@ -1,4 +1,3 @@
-// frontend/src/app/App.jsx
 import React, { useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import Header from '../shared/components/Header';
@@ -13,7 +12,6 @@ import AdminApp from '../features/admin/AdminApp';
 import '../shared/styles/DarkVeil.css';
 import '../shared/styles/auth.css';
 
-// теперь работаем с history API → проверяем именно pathname
 function isAuthPath(pathname) {
     return /^\/(login|register|password-reset)(\/.*)?$/.test(pathname || '/');
 }
@@ -21,8 +19,6 @@ function isAuthPath(pathname) {
 export default function App() {
     const dispatch = useDispatch();
     const [path, setPath] = useState(location.pathname);
-
-    // берём юзера, чтобы понять момент входа
     const { user } = useSelector((s) => s.auth);
     const prevUserRef = useRef(null);
     const [showWelcome, setShowWelcome] = useState(false);
@@ -32,13 +28,11 @@ export default function App() {
     }, [dispatch]);
     useEffect(() => onRouteChange(() => setPath(location.pathname)), []);
 
-    // Показать welcome, когда было null, а стало truthy
     useEffect(() => {
         const prev = prevUserRef.current;
         const just = sessionStorage.getItem('justLoggedIn') === '1';
         if (!prev && user && just) {
             setShowWelcome(true);
-            // флаг израсходован — чтобы не сработало при перезагрузке
             sessionStorage.removeItem('justLoggedIn');
         }
         prevUserRef.current = user;
@@ -52,7 +46,6 @@ export default function App() {
 
     return (
         <>
-            {/* ФИКСИРОВАННЫЙ ФОН ПОД ВСЕМ UI */}
             <div className="bg-veilshell" aria-hidden>
                 <DarkVeil
                     hueShift={-12}
@@ -61,7 +54,7 @@ export default function App() {
                     scanlineFrequency={0.06}
                     speed={0.55}
                     warpAmount={0.1}
-                    resolutionScale={1} // можно 0.75–1.0 для баланса FPS/чёткости
+                    resolutionScale={1}
                 />
             </div>
             {!hideHeader && <Header />}
@@ -72,7 +65,7 @@ export default function App() {
             >
                 <RouterView />
             </main>
-            {/* Welcome overlay (только сразу после логина) */}
+
             <AnimatePresence>
                 {showWelcome && (
                     <WelcomeOverlay

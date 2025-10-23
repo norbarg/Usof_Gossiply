@@ -1,4 +1,3 @@
-// DarkVeil.jsx
 import { useRef, useEffect } from 'react';
 import { Renderer, Program, Mesh, Triangle, Vec2 } from 'ogl';
 import '../styles/DarkVeil.css';
@@ -120,7 +119,7 @@ export default function DarkVeil({
                 uScan: { value: scanlineIntensity },
                 uScanFreq: { value: scanlineFrequency },
                 uWarp: { value: warpAmount },
-                uNoisePx: { value: 2.0 * dpr }, // <- НОВОЕ: размер «зерна»
+                uNoisePx: { value: 2.0 * dpr },
             },
         });
 

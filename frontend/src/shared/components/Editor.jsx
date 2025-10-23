@@ -4,7 +4,7 @@ import { Editor } from '@tinymce/tinymce-react';
 export default function RichEditor({ value, onChange }) {
     return (
         <Editor
-            apiKey="" // локально можно пусто, или ключ с tinymce.com
+            apiKey=""
             value={value}
             onEditorChange={(content) => onChange(content)}
             init={{

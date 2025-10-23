@@ -55,7 +55,6 @@ export default function CommentsPage() {
         fetchRows();
     }, [page, limit, q, status]);
 
-    // сброс страницы на первую при смене фильтров/поиска
     useEffect(() => {
         setPage(1);
     }, [q, status]);

@@ -1,4 +1,3 @@
-// backend/src/models/CommentModel.js
 import { BaseModel } from './BaseModel.js';
 
 function normalizeUploadPath(s) {

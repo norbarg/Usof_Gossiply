@@ -1,9 +1,7 @@
-// frontend/src/features/posts/components/PostCard.jsx
 import React from 'react';
 import { navigate } from '../../../shared/router/helpers';
 import { assetUrl } from '../../../shared/utils/assetUrl';
 
-// ...вверху файла можно вынести в helper:
 function formatPostDate(value) {
     try {
         const dt = new Date(value);
@@ -22,9 +20,7 @@ function formatPostDate(value) {
         return '';
     }
 }
-// helpers (вверху файла)
 function makePreview({ content_plain, excerpt, max = 400 }) {
-    // 1) предпочитаем контент; если надо — возьми более длинный вариант:
     const src =
         (content_plain?.length || 0) >= (excerpt?.length || 0)
             ? content_plain
@@ -34,16 +30,14 @@ function makePreview({ content_plain, excerpt, max = 400 }) {
     if (!text) return '';
 
     if (text.length <= max) return text;
-    // режем по границе слова и добавляем многоточие
     return text.slice(0, max).replace(/\s+\S*$/, '') + '…';
 }
 
 export default function PostCard({
     post,
     onToggleFavorite,
-    // новые пропсы с путями к твоим иконкам
-    favIconOff, // например: /icons/bookmark-off.png
-    favIconOn, // например: /icons/bookmark-on.png
+    favIconOff,
+    favIconOn,
 }) {
     const {
         id,
@@ -63,30 +57,24 @@ export default function PostCard({
 
     const displayAuthor = author_login || author_name || 'unknown';
     const authorId = Number(author_id || post?.author?.id || 0);
-
-    // дата
     const date = created_at ? formatPostDate(created_at) : '';
-
-    // категории
     const cats = Array.isArray(categories)
         ? categories
         : category_name
         ? [category_name]
         : [];
 
-    // длиннее превью
     const previewText = makePreview({ content_plain, excerpt, max: 400 });
 
     const openPost = (e) => {
         if (e?.preventDefault) e.preventDefault();
-        // сохраним текущий Y в state записи с лентой
         try {
             const el = document.querySelector('[data-scroller]');
             const y = el ? el.scrollTop : 0;
             const st = history.state || {};
             history.replaceState({ ...st, feedY: y }, '');
             sessionStorage.setItem('feedScrollY', String(y));
-            sessionStorage.setItem('feedLock', '1'); // не даём cleanup перезаписать
+            sessionStorage.setItem('feedLock', '1');
         } catch {}
         navigate(`/posts/${id}`);
     };
@@ -102,15 +90,10 @@ export default function PostCard({
                 (e.key === 'Enter' || e.key === ' ') && openPost(e)
             }
         >
-            {/* свечение */}
             <span aria-hidden className="post-card__glow" />
-
-            {/* шапка */}
             <div className="post-card__header">
-                {/* заголовок */}
                 <h3 className="post-card__title">{title} </h3>
 
-                {/* твои иконки избранного */}
                 <button
                     type="button"
                     className={`bookmark js-stop ${favorited ? 'is-on' : ''}`}
@@ -157,10 +140,8 @@ export default function PostCard({
                 </div>
             </div>
 
-            {/* текст */}
             {previewText && <p className="post-card__excerpt">{previewText}</p>}
 
-            {/* низ: теги слева — дата справа */}
             <div className="post-card__footer">
                 <div className="post-card__cats">
                     {cats.map((c, i) => (

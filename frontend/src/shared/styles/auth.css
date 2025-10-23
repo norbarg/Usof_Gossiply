@@ -1,7 +1,6 @@
-/*auth.css*/
 :root {
     --header-h: 64px;
-} /* подгони под свою высоту хедера */
+}
 html,
 body {
     height: 100%;
@@ -11,33 +10,30 @@ body {
 }
 
 .page {
-    height: 94dvh; /* мобильный-safe vh */
+    height: 94dvh;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
 }
 
 :root {
-    --scroll-thumb: rgba(110, 107, 232, 0.65); /* #6e6be8 ~65% */
+    --scroll-thumb: rgba(110, 107, 232, 0.65);
     --scroll-thumb-hover: rgba(110, 107, 232, 0.95);
 }
 
-/* Firefox */
 .page {
-    scrollbar-width: thin; /* тонкий */
-    scrollbar-color: var(--scroll-thumb) transparent; /* thumb / track */
+    scrollbar-width: thin;
+    scrollbar-color: var(--scroll-thumb) transparent;
 }
 
-/* WebKit */
 .page::-webkit-scrollbar {
     width: 10px;
 }
 .page::-webkit-scrollbar-track {
-    background: transparent; /* прячем трек */
+    background: transparent;
 }
 .page::-webkit-scrollbar-thumb {
     background-color: var(--scroll-thumb);
     border-radius: 999px;
-    /* «просвет» вокруг, чтобы трек не читался */
     border: 3px solid transparent;
     background-clip: content-box;
 }
@@ -48,7 +44,6 @@ body {
     background: transparent;
 }
 
-/* Фон для страниц аутентификации */
 .auth-bg {
     position: fixed;
     inset: 0;
@@ -66,7 +61,6 @@ body {
     pointer-events: none;
 }
 
-/* Контент над фоном */
 .auth-main {
     position: relative;
     min-height: 100vh;
@@ -76,7 +70,6 @@ body {
     padding: 32px 16px;
 }
 
-/* Карточка: общий вид для Register/Login/Reset */
 .auth-card {
     background: #15111d;
     border: 1px solid #7c7c7c;
@@ -85,7 +78,6 @@ body {
     width: min(750px, 96vw);
 }
 
-/* Заголовок */
 .auth-card__title {
     font-size: 28px;
     font-weight: 600;
@@ -111,7 +103,6 @@ body {
     height: auto;
     object-fit: contain;
 }
-/* Контент */
 .auth-card__body {
     padding: 20px 35px;
 }
@@ -146,7 +137,6 @@ body {
 .auth-backline:hover {
     color: #ffffff;
 }
-/* универсальная «стрелка» (›) для ссылок/кнопок */
 .arrow {
     display: inline-block;
     width: 18px;
@@ -167,7 +157,6 @@ body {
     transform: translateY(-3px);
 }
 
-/* Формы */
 .auth-form {
     background: transparent;
     padding: 6px 0;
@@ -192,7 +181,6 @@ body {
 .auth-input:focus {
     border-color: #6e6be8;
 }
-/* блок с «уже есть аккаунт» и кнопкой справа */
 .auth-cta {
     margin-top: 10px;
     display: grid;
@@ -308,7 +296,6 @@ body {
 .auth-arrowlink_register:hover {
     color: #e9ecf2;
 }
-/* Сообщения */
 .auth-error {
     color: #ff6b7a;
     margin-top: 8px;
@@ -333,14 +320,13 @@ body {
     cursor: pointer;
     height: 39px;
     padding: 0 18px;
-    background: #281456; /* фиолетовее */
-    opacity: 0.6; /* по умолчанию приглушена */
+    background: #281456;
+    opacity: 0.6;
     transition: background 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease,
         transform 0.05s ease;
     white-space: nowrap;
 }
 
-/* когда форма валидна — кнопка «горит» */
 .auth-btn.is-ready {
     opacity: 1;
 }
@@ -360,7 +346,6 @@ body {
     color: #e9ecf2;
 }
 
-/* Разделитель с «or» */
 .auth-sep {
     font-size: 16px;
     display: grid;
@@ -377,30 +362,25 @@ body {
     background: #7c7c7c;
 }
 
-/*  */
 .auth-body {
     display: grid;
     gap: 18px;
 }
-/* тонкая линия-разделитель для ResetPassword */
 .auth-sep-line {
     border: none;
     border-top: 1px solid #7c7c7c;
     margin: 18px 0;
 }
-/* делаем главным скроллером именно <main data-scroller> */
 .page[data-scroller] {
-    height: 98vh; /* занимает всю высоту окна */
-    overflow-y: auto; /* скроллимся внутри main */
+    height: 98vh;
+    overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
 }
 
-/* Если у тебя Header фиксированный поверх контента,
-   добавь верхний отступ под его высоту. Подставь своё значение! */
 :root {
     --header-height: 87px;
-} /* поправь под твой реальный хедер */
+}
 .page:not(.auth-main)[data-scroller] {
     padding-top: var(--header-height);
 }

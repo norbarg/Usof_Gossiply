@@ -1,17 +1,15 @@
-// frontend/src/shared/components/WelcomeOverlay.jsx
 import { motion } from 'motion/react';
 import { useEffect } from 'react';
-import BlurText from './BlurText'; // положи твой BlurText сюда: shared/components/BlurText.jsx
+import BlurText from './BlurText';
 
 export default function WelcomeOverlay({
     visible = false,
     text = 'Welcome to Gossiply',
     onDone = () => {},
-    holdAfterTextMs = 600, // сколько подержать после завершения анимации текста
+    holdAfterTextMs = 600,
 }) {
     useEffect(() => {
         if (!visible) return;
-        // страховка на случай, если onAnimationComplete не сработает
         const kill = setTimeout(onDone, 5000);
         return () => clearTimeout(kill);
     }, [visible, onDone]);
@@ -29,8 +27,8 @@ export default function WelcomeOverlay({
             <BlurText
                 text={text}
                 animateBy="words"
-                delay={120} // шаг задержки между словами (мс)
-                stepDuration={0.35} // длительность каждого шага анимации
+                delay={120}
+                stepDuration={0.35}
                 direction="top"
                 className="welcome-veil__title"
                 onAnimationComplete={() => setTimeout(onDone, holdAfterTextMs)}

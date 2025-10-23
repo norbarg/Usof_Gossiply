@@ -1,11 +1,8 @@
-// frontend/src/features/auth/pages/Register.jsx
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { register, clearError } from '../authActions';
 import { navigate } from '../../../shared/router/helpers';
 
-// Если у тебя есть логотип-изображение, положи его в /src/shared/assets/logo.svg
-// и раскомментируй <img .../> ниже
 export default function Register() {
     const dispatch = useDispatch();
     const { loading, error } = useSelector((s) => s.auth);
@@ -19,14 +16,12 @@ export default function Register() {
         password_confirmation: '',
     });
 
-    // авто-скрытие глобальной ошибки Redux через 3 секунды
     useEffect(() => {
         if (!error) return;
         const t = setTimeout(() => dispatch(clearError()), 3000);
         return () => clearTimeout(t);
     }, [error, dispatch]);
 
-    // авто-скрытие локальной ошибки (например, пароли не совпали)
     useEffect(() => {
         if (!localError) return;
         const t = setTimeout(() => setLocalError(''), 3000);
@@ -51,7 +46,6 @@ export default function Register() {
 
     return (
         <div className="auth-card">
-            {/* ======= БЛОК 1: Заголовок ======= */}
             <div className="auth-header">
                 <img
                     src="/src/assets/logo.png"
@@ -64,11 +58,8 @@ export default function Register() {
                 <div />
             </div>
 
-            {/* ======= БЛОК 2: Контент ======= */}
             <div className="auth-card__body">
-                {/* 3 колонки: [Back] [Форма] [спейсер] */}
                 <div className="auth-body3">
-                    {/* ЛЕВАЯ колонка — Back со стрелкой, на уровне первого поля */}
                     <div className="auth-body3__left">
                         <button
                             type="button"
@@ -79,7 +70,6 @@ export default function Register() {
                         </button>
                     </div>
 
-                    {/* ЦЕНТР — форма + нижняя полоска с «Already… / Sign up» */}
                     <form className="auth-form  " onSubmit={onSubmit}>
                         <input
                             className="auth-input inria-serif-regular"
@@ -133,7 +123,6 @@ export default function Register() {
                             required
                         />
 
-                        {/* Нижняя полоса: слева — текст+ссылка со стрелкой, справа — кнопка */}
                         <div className="auth-cta">
                             <div className="auth-cta__left">
                                 <div className="auth-muted">
@@ -175,7 +164,6 @@ export default function Register() {
                         </div>
                     </form>
 
-                    {/* ПРАВАЯ колонка — пустой спейсер для симметрии */}
                     <div className="auth-body3__right" />
                 </div>
             </div>

@@ -1,4 +1,3 @@
-// backend/src/routes/posts.routes.js
 import { Router } from 'express';
 import { PostController } from '../controllers/PostController.js';
 import { CommentController } from '../controllers/CommentController.js';
@@ -32,7 +31,6 @@ r.get(
     PostController.listCommentsAdmin
 );
 
-// public list
 r.get('/', attachUserIfAny, PostController.list); //corrected
 r.get('/:post_id/comments', attachUserIfAny, PostController.listComments);
 r.get('/:post_id', attachUserIfAny, PostController.getById); //corrected
@@ -46,11 +44,10 @@ r.get('/:post_id/comments/stream', (req, res) => {
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders?.();
 
-    // перший "hello", щоб клієнт зрозумів, що з'єднання ок
     res.write(`event: hello\ndata: {"ok":true}\n\n`);
 
     const unsubscribe = subscribeToComments(postId, res);
-    const ping = setInterval(() => res.write(':\n\n'), 25000); // keep-alive
+    const ping = setInterval(() => res.write(':\n\n'), 25000);
 
     req.on('close', () => {
         clearInterval(ping);

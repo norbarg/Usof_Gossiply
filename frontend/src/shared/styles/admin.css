@@ -1,13 +1,7 @@
-/* =======================
-   Admin (full screen)
-   ======================= */
-
-/* прячем сайт-хедер в админке */
 html.admin-fullscreen .site-header {
     display: none !important;
 }
 
-/* палитра и общие токены */
 :root {
     --admin-bg: #100c18;
     --admin-card: #15111d;
@@ -35,12 +29,11 @@ html.admin-fullscreen .site-header {
 .admin-shell {
     display: grid;
     grid-template-columns: 220px 1fr;
-    height: 100vh; /* на весь экран */
+    height: 100vh;
     background: var(--admin-bg);
     color: var(--text-primary);
 }
 
-/* Sidebar */
 .admin-aside {
     border-right: 1px solid var(--admin-border);
     background: linear-gradient(
@@ -108,7 +101,7 @@ html.admin-fullscreen .site-header {
 }
 
 /* =======================
-   Main (единственный скроллер)
+   Main 
    ======================= */
 
 .admin-main {
@@ -126,8 +119,6 @@ html.admin-fullscreen .site-header {
     color: var(--text-primary);
     scrollbar-gutter: stable both-edges;
 }
-
-/* Scrollbar (WebKit) */
 .admin-main::-webkit-scrollbar {
     width: 10px;
 }
@@ -147,7 +138,6 @@ html.admin-fullscreen .site-header {
     background: transparent;
 }
 
-/* Topbar */
 .admin-topbar {
     position: sticky;
     top: 0;
@@ -215,7 +205,7 @@ html.admin-fullscreen .site-header {
    ======================= */
 
 .admin-table-wrap {
-    overflow: hidden; /* единственный скроллер остаётся на .admin-main */
+    overflow: hidden;
     -webkit-overflow-scrolling: touch;
     border-radius: calc(var(--radius-xl) - 4px);
 }
@@ -422,7 +412,6 @@ html.admin-fullscreen .site-header {
     box-shadow: 0 6px 22px rgba(110, 107, 232, 0.22);
 }
 
-/* plain link buttons inside tables */
 .link-plain {
     background: transparent;
     border: 0;

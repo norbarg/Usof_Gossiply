@@ -1,4 +1,3 @@
-// frontend/src/features/profile/pages/Profile.jsx
 import React, { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { navigate } from '../../../shared/router/helpers';
@@ -192,7 +191,6 @@ export default function Profile() {
         setMyPosts([]);
         setMyMeta((m) => ({ ...m, page: 1, total: 0 }));
         if (user?.id) fetchMyPosts({ page: 1, append: false });
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user?.id]);
 
     const hasMore = myPosts.length < (myMeta.total || 0);
@@ -224,9 +222,7 @@ export default function Profile() {
             <section className="profile-wrap glam">
                 <div className="profile-glow" aria-hidden />
 
-                {/* ЛЕВАЯ КОЛОНКА */}
                 <aside>
-                    {/* шапка: аватар слева, имя-узор справа */}
                     <div className="left-head">
                         <div className="profile-avatar-wrap big">
                             <img
@@ -243,7 +239,6 @@ export default function Profile() {
                             />
                         </div>
 
-                        {/* колонка с повторяющимся именем */}
                         <div className="name-stack">
                             <div className="name-bg-multi" aria-hidden>
                                 {nameRows.map((t, i) => (
@@ -296,7 +291,6 @@ export default function Profile() {
                         </div>
                     </div>
 
-                    {/* только две кнопки и обе НЕ ghost */}
                     <div className="profile-actions row">
                         <button
                             className="btn violet inria-serif-bold"
@@ -321,7 +315,6 @@ export default function Profile() {
                         </button>
                     </div>
 
-                    {/* прямоугольник с MetaBalls */}
                     <div className="profile-blob-card">
                         <MetaBalls
                             className="blob"
@@ -337,10 +330,8 @@ export default function Profile() {
                     </div>
                 </aside>
 
-                {/* ВЕРТИКАЛЬНАЯ ЛИНИЯ */}
                 <div className="profile-vline" aria-hidden />
 
-                {/* ПРАВАЯ КОЛОНКА */}
                 <main className=" glam-main">
                     <div className="main-topbar">
                         <div className="counters-inline">

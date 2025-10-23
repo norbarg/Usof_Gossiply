@@ -20,8 +20,6 @@ export default function ProfileEdit() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [loginTaken, setLoginTaken] = useState(false);
-
-    // danger zone
     const [showDanger, setShowDanger] = useState(false);
     const [confirmLogin, setConfirmLogin] = useState('');
     const confirmOk = useMemo(
@@ -48,7 +46,6 @@ export default function ProfileEdit() {
         })();
     }, [user?.id, dispatch]);
 
-    // блокируем скролл под модалкой
     useEffect(() => {
         const prev = document.body.style.overflow;
         document.body.style.overflow = 'hidden';
@@ -83,7 +80,6 @@ export default function ProfileEdit() {
                     headers: { 'Content-Type': 'multipart/form-data' },
                 });
             }
-            // Роль НЕ отправляем вообще
             const body = { full_name: fullName.trim(), login: login.trim() };
             await api.patch(`/users/${user.id}`, body);
 
@@ -122,7 +118,6 @@ export default function ProfileEdit() {
         }
     };
 
-    // закрытие по клику вне карточки
     const onVeilClick = useCallback((e) => {
         if (e.target === e.currentTarget) navigate(-1);
     }, []);
@@ -150,7 +145,6 @@ export default function ProfileEdit() {
                     )}
 
                     <div className="edit-grid">
-                        {/* Аватар и загрузка */}
                         <div className="avatar-col">
                             <div className="avatar-box">
                                 <img
@@ -200,7 +194,6 @@ export default function ProfileEdit() {
                             )}
                         </div>
 
-                        {/* Поля */}
                         <div className="fields-col">
                             <label className="f-field">
                                 <span className="f-label">Full name</span>
@@ -248,7 +241,6 @@ export default function ProfileEdit() {
                                 )}
                             </label>
 
-                            {/* Роль показываем только read-only */}
                             <label className="f-field">
                                 <span className="f-label">Role</span>
                                 <div className="f-readonly">
@@ -272,7 +264,6 @@ export default function ProfileEdit() {
                         </div>
                     </div>
 
-                    {/* Danger zone */}
                     <div className="danger-zone">
                         <h3 className="inria-serif-bold">Danger zone</h3>
                         {!showDanger ? (

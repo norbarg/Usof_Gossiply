@@ -1,4 +1,3 @@
-// backend/src/app.js
 import express from 'express';
 import morgan from 'morgan';
 import 'express-async-errors';
@@ -17,11 +16,9 @@ const __dirname = path.dirname(__filename);
 
 const uploadsDir = path.join(__dirname, '..', 'uploads');
 
-// Нормализатор пути для "/uploads"
 app.use((req, res, next) => {
     if (!req.path.startsWith('/uploads/')) return next();
 
-    // если пришло "/uploads/avatars123.jpg" — перепишем на "/uploads/avatars/123.jpg"
     const fixed = req.path.replace(
         /^\/uploads\/avatars(?=\d)/i,
         '/uploads/avatars/'
@@ -32,7 +29,7 @@ app.use((req, res, next) => {
             fixed.replace(/^\/uploads\//, '')
         );
         if (fs.existsSync(tryFile)) {
-            req.url = fixed; // переписываем URL и дальше отдаст express.static
+            req.url = fixed;
         }
     }
     next();
@@ -46,7 +43,7 @@ const serveUploads = express.static(uploadsDir, {
     },
 });
 app.use('/uploads', serveUploads);
-app.use('/api/uploads', serveUploads); // ← ВАЖНО для dev-прокси (/api)
+app.use('/api/uploads', serveUploads);
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 app.get('/default.png', (_req, res) => {
     res.sendFile(path.join(__dirname, '../default.png'));

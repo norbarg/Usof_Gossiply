@@ -1,4 +1,3 @@
-// frontend/src/features/auth/pages/Login.jsx
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchMeFromToken, login, clearError } from '../authActions';
@@ -8,7 +7,6 @@ export default function Login() {
     const dispatch = useDispatch();
     const { loading, error, token } = useSelector((s) => s.auth);
 
-    // только два поля
     const [form, setForm] = useState({ identifier: '', password: '' });
 
     useEffect(() => {
@@ -18,7 +16,6 @@ export default function Login() {
         if (token) navigate('/');
     }, [token]);
 
-    // авто-скрытие глобальной ошибки через 3 секунды
     useEffect(() => {
         if (!error) return;
         const t = setTimeout(() => dispatch(clearError()), 3000);
@@ -34,17 +31,14 @@ export default function Login() {
         try {
             await dispatch(login(payload));
         } finally {
-            // даже если ошибка — пароль уберём из памяти
             setForm((prev) => ({ ...prev, password: '' }));
         }
     };
 
-    // активируем кнопку: оба поля непустые
     const canSubmit = !!form.identifier.trim() && !!form.password && !loading;
 
     return (
         <div className="auth-card">
-            {/* ======= HEADER ======= */}
             <div className="auth-header">
                 <img
                     src="/src/assets/logo.png"
@@ -55,10 +49,8 @@ export default function Login() {
                 <div />
             </div>
 
-            {/* ======= BODY ======= */}
             <div className="auth-card__body">
                 <div className="auth-body3">
-                    {/* левая колонка — Back */}
                     <div className="auth-body3__left">
                         <button
                             type="button"
@@ -69,7 +61,6 @@ export default function Login() {
                         </button>
                     </div>
 
-                    {/* центр — форма */}
                     <form
                         className="auth-form auth-body3__center"
                         onSubmit={onSubmit}
@@ -95,7 +86,6 @@ export default function Login() {
                             required
                         />
 
-                        {/* row: слева Reset, справа кнопка */}
                         <div className="auth-cta">
                             <div className="auth-cta__left">
                                 <div className="auth-muted">
@@ -126,7 +116,6 @@ export default function Login() {
                             </div>
                         </div>
 
-                        {/* разделитель + ссылка на регистрацию */}
                         <div className="auth-sep">or</div>
                         <div className="auth-muted auth-center inria-serif-bold">
                             New user?{' '}
@@ -139,7 +128,6 @@ export default function Login() {
                         </div>
                     </form>
 
-                    {/* правый спейсер */}
                     <div className="auth-body3__right" />
                 </div>
             </div>
